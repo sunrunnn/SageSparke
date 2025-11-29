@@ -246,17 +246,17 @@ export function ChatLayout({ user }: { user: User | null }) {
     if (messageIndex === -1) return;
     
     // Create a new array of messages up to the point of the edit.
-    const messagesForRegeneration = originalConversation.messages.slice(0, messageIndex);
+    const historyToRegenerate = originalConversation.messages.slice(0, messageIndex);
     
     const editedUserMessage: Message = {
       ...originalConversation.messages[messageIndex],
       content: newContent,
     };
     
-    messagesForRegeneration.push(editedUserMessage);
+    const messagesForUIRegeneration = [...historyToRegenerate, editedUserMessage];
 
     // Update the UI optimistically with the edited message and remove subsequent messages.
-    const updatedConversation = { ...originalConversation, messages: messagesForRegeneration };
+    const updatedConversation = { ...originalConversation, messages: messagesForUIRegeneration };
 
     setConversations(prev => {
         const newConversations = [...prev];
@@ -273,11 +273,11 @@ export function ChatLayout({ user }: { user: User | null }) {
         timestamp: new Date(),
     };
     
-    const messagesWithLoader = [...messagesForRegeneration, loadingMessage];
+    const messagesWithLoader = [...messagesForUIRegeneration, loadingMessage];
     setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...c, messages: messagesWithLoader } : c));
 
     try {
-        const aiResponse = await generateResponse(messagesForRegeneration);
+        const aiResponse = await generateResponse(messagesForUIRegeneration);
         const assistantMessage: Message = {
             id: nanoid(),
             role: 'assistant',
@@ -285,7 +285,7 @@ export function ChatLayout({ user }: { user: User | null }) {
             timestamp: new Date(),
         };
 
-        const finalMessages = [...messagesForRegeneration, assistantMessage];
+        const finalMessages = [...messagesForUIRegeneration, assistantMessage];
         const finalConversation = { ...updatedConversation, messages: finalMessages };
 
         setConversations(prev => prev.map(c => c.id === activeConversationId ? finalConversation : c));
@@ -303,7 +303,7 @@ export function ChatLayout({ user }: { user: User | null }) {
     } catch (error: any) {
         toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to get response from AI.' });
         // On error, revert to the state before we added the loader
-        setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...c, messages: messagesForRegeneration } : c));
+        setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...c, messages: messagesForUIRegeneration } : c));
     }
   };
 
