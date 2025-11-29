@@ -12,6 +12,7 @@ import {
   SidebarContent,
   SidebarTrigger,
   SidebarInput,
+  SidebarProvider
 } from "@/components/ui/sidebar";
 import { Logo } from "./logo";
 import { Button } from "./ui/button";
@@ -48,6 +49,7 @@ export function ConversationSidebar({
     );
 
   return (
+    <SidebarProvider>
     <Sidebar>
       <SidebarHeader>
         <div className="flex items-center justify-between">
@@ -104,5 +106,6 @@ export function ConversationSidebar({
         </Button>
       </SidebarFooter>
     </Sidebar>
+    </SidebarProvider>
   );
 }

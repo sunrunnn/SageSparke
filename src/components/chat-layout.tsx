@@ -4,7 +4,7 @@ import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
-} from "@/components/ui/sidebar";
+} from "@/components/ui/resizable";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useCallback } from "react";
 import type { Conversation, Message, User } from "@/lib/types";
@@ -14,6 +14,7 @@ import { nanoid } from "nanoid";
 import { ChatView } from "./chat-view";
 import { ConversationSidebar } from "./conversation-sidebar";
 import { getConversationTitle } from "@/app/actions";
+import { UserNav } from "./user-nav";
 
 // In-memory store for guest conversations
 const guestConversationStore: Record<string, Conversation> = {};
@@ -121,16 +122,18 @@ export function ChatLayout({ user }: { user: User | null }) {
       (c) => c.id === finalConversationId
     );
 
-    if (!finalConversationId) {
+    // If there is no active conversation, create a new one first.
+    if (!currentConversation) {
+      const newConvId = nanoid();
       const newConv: Conversation = {
-        id: nanoid(),
+        id: newConvId,
         title: "New Chat",
         messages: [],
         createdAt: new Date(),
         userId: user?.id,
       };
+
       if (user) {
-        // Logic to save the new conversation to the backend
         try {
           const response = await fetch("/api/conversations", {
             method: "POST",
@@ -141,7 +144,6 @@ export function ChatLayout({ user }: { user: User | null }) {
           const createdConv = await response.json();
           createdConv.createdAt = new Date(createdConv.createdAt);
           setConversations((prev) => [createdConv, ...prev]);
-          finalConversationId = createdConv.id;
           currentConversation = createdConv;
         } catch (error) {
           console.error(error);
@@ -155,11 +157,12 @@ export function ChatLayout({ user }: { user: User | null }) {
       } else {
         guestConversationStore[newConv.id] = newConv;
         setConversations((prev) => [newConv, ...prev]);
-        finalConversationId = newConv.id;
         currentConversation = newConv;
       }
-      setActiveConversationId(finalConversationId);
+      setActiveConversationId(newConv.id);
+      finalConversationId = newConv.id;
     }
+
 
     const userMessage: Message = {
       id: nanoid(),
@@ -170,7 +173,7 @@ export function ChatLayout({ user }: { user: User | null }) {
     };
 
     const updatedMessagesForUI = [
-      ...(currentConversation?.messages || []),
+      ...currentConversation.messages,
       userMessage,
     ];
 
@@ -243,7 +246,7 @@ export function ChatLayout({ user }: { user: User | null }) {
       );
       if (
         conversationForTitle &&
-        conversationForTitle.messages.length === 1 && // After user's first message
+        conversationForTitle.messages.length === 2 && // After user's first message and AI response
         conversationForTitle.title === "New Chat"
       ) {
         setTimeout(async () => {
@@ -307,7 +310,8 @@ export function ChatLayout({ user }: { user: User | null }) {
       content: newContent,
     };
 
-    const updatedMessagesForUI = [...history, editedMessage];
+    const updatedMessagesForGeneration = [...history, editedMessage];
+    
     const loadingMessage: Message = {
       id: nanoid(),
       role: "assistant",
@@ -315,26 +319,28 @@ export function ChatLayout({ user }: { user: User | null }) {
       isLoading: true,
       timestamp: new Date(),
     };
-
+    
+    // Update the UI to show the edited message and a loading state
     setConversations((prev) =>
       prev.map((c) =>
         c.id === conversationId
-          ? { ...c, messages: [...updatedMessagesForUI, loadingMessage] }
+          ? { ...c, messages: [...updatedMessagesForGeneration, loadingMessage] }
           : c
       )
     );
 
     try {
-      const aiResponseText = await generateResponse(updatedMessagesForUI);
+      // Pass the correct full history to the AI
+      const aiResponseText = await generateResponse(updatedMessagesForGeneration);
       const aiMessage: Message = {
-        id: loadingMessage.id,
+        id: loadingMessage.id, // Replace loading message
         role: "assistant",
         content: aiResponseText,
         isLoading: false,
         timestamp: new Date(),
       };
 
-      const finalMessages = [...updatedMessagesForUI, aiMessage];
+      const finalMessages = [...updatedMessagesForGeneration, aiMessage];
       setConversations((prev) =>
         prev.map((c) =>
           c.id === conversationId ? { ...c, messages: finalMessages } : c
@@ -357,10 +363,11 @@ export function ChatLayout({ user }: { user: User | null }) {
         title: "Error",
         description: error.message || "Failed to get response from AI.",
       });
+      // On error, revert to the state before the AI call
       setConversations((prev) =>
         prev.map((c) =>
           c.id === conversationId
-            ? { ...c, messages: updatedMessagesForUI }
+            ? { ...c, messages: updatedMessagesForGeneration } // Keep the user's edit, remove loading
             : c
         )
       );
@@ -382,11 +389,11 @@ export function ChatLayout({ user }: { user: User | null }) {
         <ConversationSidebar
           conversations={conversations}
           activeConversationId={activeConversationId}
-          setActiveConversationId={setActiveConversationId}
+          onConversationSelect={setActiveConversationId}
           onNewConversation={handleNewConversation}
           isLoading={isLoading}
           isNewChatLoading={isNewChatLoading}
-          user={user}
+          userNav={<UserNav user={user} />}
         />
       </ResizablePanel>
       <ResizableHandle withHandle className="hidden md:flex" />
@@ -395,7 +402,7 @@ export function ChatLayout({ user }: { user: User | null }) {
           conversation={activeConversation}
           onSendMessage={handleSendMessage}
           onEditMessage={handleEditMessage}
-          isLoading={isLoading}
+          isLoading={!activeConversation && isLoading}
         />
       </ResizablePanel>
     </ResizablePanelGroup>
