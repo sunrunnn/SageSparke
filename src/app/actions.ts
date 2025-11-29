@@ -14,26 +14,17 @@ export async function generateResponse(
 ): Promise<string> {
   const systemPrompt = `You are SageSpark, an intelligent and sophisticated AI assistant. Your goal is to provide accurate, helpful, and concise responses. When asked about the conversation history, answer the user's question based on the context, do not just repeat their question back to them.`;
 
-  // Prepend the system prompt to the history
-  const history: Message[] = [
-    {
-      id: "system",
-      role: "assistant", // Start with assistant instructions
-      content: systemPrompt,
-      timestamp: new Date(),
-    },
-    ...messages,
-  ];
-
-  const modelRequestMessages = history.map((msg): Part => {
+  const modelRequestMessages = messages.map((msg): Part => {
+    // Map our 'assistant' role to the 'model' role expected by Genkit
+    const role = msg.role === 'assistant' ? 'model' : 'user';
     if (msg.imageUrl) {
       return {
-        role: msg.role,
+        role: role,
         content: [{ text: msg.content }, { media: { url: msg.imageUrl } }],
       };
     }
     return {
-      role: msg.role,
+      role: role,
       content: [{ text: msg.content }],
     };
   });
@@ -41,6 +32,7 @@ export async function generateResponse(
 
   try {
     const llmResponse = await ai.generate({
+      system: systemPrompt,
       prompt: modelRequestMessages,
       config: {
         temperature: 0.5,
