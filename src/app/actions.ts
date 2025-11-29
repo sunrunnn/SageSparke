@@ -14,32 +14,34 @@ export async function generateResponse(
 ): Promise<string> {
   const systemPrompt = `You are SageSpark, an intelligent and sophisticated AI assistant. Your goal is to provide accurate, helpful, and concise responses. When asked about the conversation history, answer the user's question based on the context, do not just repeat their question back to them.`;
 
-  const history: Part[] = messages.map((msg) => {
-    const part: Part = {
-        role: msg.role,
-        text: msg.content
-    };
+  // Prepend the system prompt to the history
+  const history: Message[] = [
+    {
+      id: "system",
+      role: "assistant", // Start with assistant instructions
+      content: systemPrompt,
+      timestamp: new Date(),
+    },
+    ...messages,
+  ];
+
+  const modelRequestMessages = history.map((msg): Part => {
     if (msg.imageUrl) {
-        // Genkit expects media to be part of the content array for multimodal prompts
-        // but for now we are using a simpler model that doesn't support that
-        // so we attach it to the Part. The new model will require this to be changed.
-        return {
-            role: msg.role,
-            content: [{ text: msg.content }, { media: { url: msg.imageUrl } }],
-        };
+      return {
+        role: msg.role,
+        content: [{ text: msg.content }, { media: { url: msg.imageUrl } }],
+      };
     }
     return {
-        role: msg.role,
-        content: [{ text: msg.content }],
+      role: msg.role,
+      content: [{ text: msg.content }],
     };
   });
 
+
   try {
     const llmResponse = await ai.generate({
-      prompt: [
-        { role: 'system', content: [{ text: systemPrompt }] },
-        ...history,
-      ],
+      prompt: modelRequestMessages,
       config: {
         temperature: 0.5,
       },
