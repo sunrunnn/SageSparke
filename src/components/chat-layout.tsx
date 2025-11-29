@@ -332,5 +332,3 @@ export function ChatLayout({ user }: { user: User | null }) {
     </SidebarProvider>
   );
 }
-
-    
