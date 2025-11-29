@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     
     try {
         const body = await req.json();
-        const { title, messages } = body;
+        const { title } = body;
 
         if (!title) {
             return NextResponse.json({ message: 'Title is required' }, { status: 400 });
@@ -41,13 +41,12 @@ export async function POST(req: NextRequest) {
             id: nanoid(),
             userId: session.userId,
             title: title,
-            messages: messages || [],
+            messages: [], // Always start with an empty array for a new chat
             createdAt: new Date(),
         };
 
         const database = await db.read();
         
-        // Ensure conversations array exists
         if (!database.conversations) {
             database.conversations = [];
         }

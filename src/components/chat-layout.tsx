@@ -67,7 +67,7 @@ export function ChatLayout({ user }: { user: User | null }) {
             const response = await fetch('/api/conversations', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: 'New Chat', messages: [] }),
+                body: JSON.stringify({ title: 'New Chat' }), // Simplified body
             });
             if (!response.ok) {
               const errorData = await response.json();
@@ -109,7 +109,7 @@ export function ChatLayout({ user }: { user: User | null }) {
             const response = await fetch('/api/conversations', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: initialTitle, messages: [] }),
+                body: JSON.stringify({ title: initialTitle }),
             });
             if (!response.ok) throw new Error('Failed to create new conversation.');
             const createdConv = await response.json();
