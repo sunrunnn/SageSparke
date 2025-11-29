@@ -52,10 +52,13 @@ export default function LoginPage() {
 
       toast({
         title: 'Login Successful',
-        description: "Welcome back!",
+        description: "Welcome back! Redirecting you now...",
       });
+      
+      setTimeout(() => {
+        router.push('/');
+      }, 2000);
 
-      router.push('/');
     } catch (error: any) {
       toast({
         variant: 'destructive',
