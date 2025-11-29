@@ -7,33 +7,37 @@ import {
 } from "@/ai/flows/improve-prompt";
 import { summarizeConversation } from "@/ai/flows/summarize-conversation";
 import { Message } from "@/lib/types";
-import { Part } from "genkit";
+import { Part, Message as GenkitMessage } from "genkit";
 
 export async function generateResponse(
   messages: Message[]
 ): Promise<string> {
   const systemPrompt = `You are SageSpark, an intelligent and sophisticated AI assistant. Your goal is to provide accurate, helpful, and concise responses. When asked about the conversation history, answer the user's question based on the context, do not just repeat their question back to them.`;
+  
+  if (messages.length === 0) {
+    return "Something went wrong. No messages provided.";
+  }
 
-  const modelRequestMessages = messages.map((msg): Part => {
-    // Map our 'assistant' role to the 'model' role expected by Genkit
-    const role = msg.role === 'assistant' ? 'model' : 'user';
+  const history: GenkitMessage[] = messages.slice(0, -1).map((msg) => {
+    const role = msg.role === "assistant" ? "model" : "user";
+    const content: Part[] = [{ text: msg.content }];
     if (msg.imageUrl) {
-      return {
-        role: role,
-        content: [{ text: msg.content }, { media: { url: msg.imageUrl } }],
-      };
+      content.push({ media: { url: msg.imageUrl } });
     }
-    return {
-      role: role,
-      content: [{ text: msg.content }],
-    };
+    return { role, content };
   });
 
+  const lastMessage = messages[messages.length - 1];
+  const prompt: Part[] = [{ text: lastMessage.content }];
+  if (lastMessage.imageUrl) {
+    prompt.push({ media: { url: lastMessage.imageUrl } });
+  }
 
   try {
     const llmResponse = await ai.generate({
       system: systemPrompt,
-      prompt: modelRequestMessages,
+      history: history,
+      prompt: prompt,
       config: {
         temperature: 0.5,
       },
