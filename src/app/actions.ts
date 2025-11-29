@@ -12,7 +12,7 @@ import { Part } from "genkit";
 export async function generateResponse(
   messages: Message[]
 ): Promise<string> {
-  const systemPrompt = `You are SageSpark, an intelligent and sophisticated AI assistant. Your goal is to provide accurate, helpful, and concise responses.`;
+  const systemPrompt = `You are SageSpark, an intelligent and sophisticated AI assistant. Your goal is to provide accurate, helpful, and concise responses. When asked about the conversation history, answer the user's question based on the context, do not just repeat their question back to them.`;
 
   const history = messages.map((msg): Part => {
     const part: Part = {

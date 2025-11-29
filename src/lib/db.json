@@ -37,6 +37,17 @@
           "role": "assistant",
           "content": "An \"Internal server error\" indicates a problem on the server side, not typically with your device or internet connection. Here's how you can try to resolve it:\n\n1.  **Refresh the page:** Often, a simple refresh can clear temporary glitches.\n2.  **Clear browser cache and cookies:** Outdated or corrupted browser data can sometimes cause issues.\n3.  **Try a different browser or incognito/private mode:** This helps determine if the issue is specific to your current browser or extensions.\n4.  **Wait and retry:** Server errors can be temporary. The issue might resolve itself after a few minutes or hours.\n5.  **Contact SageSpark support:** If the problem persists, it's best to report it directly to SageSpark's support team, as they can investigate the server-side issue.",
           "timestamp": "2025-11-29T16:57:37.606Z"
+        },
+        {
+          "id": "PDr7XIJxY4UPefSbSJymS",
+          "role": "user",
+          "content": "what was the pervious prompt",
+          "timestamp": "2025-11-29T17:05:51.512Z"
+        },
+        {
+          "id": "OlT6OaICpC95ahI7Iv5OA",
+          "role": "assistant",
+          "timestamp": "2025-11-29T17:05:53.145Z"
         }
       ],
       "createdAt": "2025-11-29T16:55:26.366Z"
