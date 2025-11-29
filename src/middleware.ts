@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { decrypt } from '@/lib/session';
 
 // 1. Specify protected and public routes
-const protectedRoutes = ['/'];
+const protectedRoutes: string[] = []; // No protected routes, all are public
 const publicRoutes = ['/login', '/signup'];
 
 export default async function middleware(req: NextRequest) {

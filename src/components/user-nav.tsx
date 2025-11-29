@@ -14,9 +14,10 @@ import {
 import { LogOut, User as UserIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import type { User } from '@/lib/types';
 
 type UserNavProps = {
-    user: { username: string } | null;
+    user: User | null;
 }
 
 export function UserNav({ user }: UserNavProps) {
@@ -30,11 +31,11 @@ export function UserNav({ user }: UserNavProps) {
 
   if (!user) {
     return (
-        <div className="flex gap-2">
-            <Button asChild variant="ghost">
+        <div className="flex gap-2 w-full">
+            <Button asChild variant="ghost" className="flex-1">
                 <Link href="/login">Login</Link>
             </Button>
-            <Button asChild>
+            <Button asChild className="flex-1">
                 <Link href="/signup">Sign Up</Link>
             </Button>
       </div>

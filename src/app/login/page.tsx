@@ -55,9 +55,7 @@ export default function LoginPage() {
         description: "Welcome back! Redirecting you now...",
       });
       
-      setTimeout(() => {
-        router.push('/');
-      }, 2000);
+      router.push('/');
 
     } catch (error: any) {
       toast({
@@ -115,6 +113,12 @@ export default function LoginPage() {
             Don&apos;t have an account?{' '}
             <Link href="/signup" className="font-semibold text-primary hover:underline">
               Sign up
+            </Link>
+          </p>
+           <p className="mt-2 text-center text-sm text-muted-foreground">
+            or{' '}
+            <Link href="/" className="font-semibold text-primary hover:underline">
+              Continue as Guest
             </Link>
           </p>
         </CardContent>

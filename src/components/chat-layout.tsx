@@ -13,10 +13,9 @@ import { nanoid } from 'nanoid';
 // A simple in-memory store for conversations for guest users.
 const guestConversationStore: { [key: string]: Conversation } = {};
 
-async function fetchConversations(userId: string): Promise<Conversation[]> {
-    if (!userId) return [];
+async function fetchConversations(): Promise<Conversation[]> {
     try {
-        const response = await fetch(`/api/conversations?userId=${userId}`);
+        const response = await fetch(`/api/conversations`);
         if (!response.ok) {
             throw new Error('Failed to fetch conversations');
         }
@@ -40,12 +39,10 @@ export function ChatLayout({ user }: { user: User | null }) {
     const loadConversations = async () => {
       setIsLoading(true);
       if (user) {
-        const fetchedConversations = await fetchConversations(user.id);
+        const fetchedConversations = await fetchConversations();
         setConversations(fetchedConversations);
         if (fetchedConversations.length > 0) {
           setActiveConversationId(fetchedConversations[0].id);
-        } else {
-          // No need to call new conversation creation here, let the user decide.
         }
       } else {
         // Handle guest user
@@ -94,13 +91,13 @@ export function ChatLayout({ user }: { user: User | null }) {
     setIsNewChatLoading(false);
   };
 
-  const handleSendMessage = async (content: string) => {
-    let conversationToUpdateId = activeConversationId;
+  const handleSendMessage = async (prompt: string, conversationId?: string) => {
+    const activeId = conversationId || activeConversationId;
+    let conversationToUpdate = conversations.find(c => c.id === activeId);
 
     // If there is no active conversation, create a new one first.
-    if (!conversationToUpdateId) {
+    if (!conversationToUpdate) {
         const newId = nanoid();
-        conversationToUpdateId = newId;
         const newConversation: Conversation = {
           id: newId,
           userId: user?.id || 'guest',
@@ -126,46 +123,39 @@ export function ChatLayout({ user }: { user: User | null }) {
         
         setConversations(prev => [newConversation, ...prev]);
         setActiveConversationId(newId);
+        conversationToUpdate = newConversation;
     }
     
     const userMessage: Message = {
       id: nanoid(),
       role: 'user',
-      content,
+      content: prompt,
       timestamp: new Date(),
     };
 
-    const currentConversation = conversations.find(c => c.id === conversationToUpdateId) || {
-        id: conversationToUpdateId,
-        userId: user?.id || 'guest',
-        title: 'New Chat',
-        messages: [],
-        createdAt: new Date(),
-    };
-
-
     // Optimistically update UI
-    const updatedMessagesWithUser = [...currentConversation.messages, userMessage];
-    let conversationWithUserMessage = {...currentConversation, messages: updatedMessagesWithUser};
+    const updatedMessages = [...(conversationToUpdate.messages || []), userMessage];
+    let updatedConversation = {...conversationToUpdate, messages: updatedMessages};
 
+    const finalConversationId = conversationToUpdate.id;
     setConversations(prev =>
         prev.map(c =>
-            c.id === conversationToUpdateId
-                ? conversationWithUserMessage
+            c.id === finalConversationId
+                ? updatedConversation
                 : c
         )
     );
     
     // Generate title for first message
-    if (currentConversation.messages.length === 0) {
-        const newTitle = await getConversationTitle(content);
-        conversationWithUserMessage = {...conversationWithUserMessage, title: newTitle};
+    if (conversationToUpdate.messages.length === 0) {
+        const newTitle = await getConversationTitle(prompt);
+        updatedConversation = {...updatedConversation, title: newTitle};
 
-        setConversations(prev => prev.map(c => c.id === conversationToUpdateId ? conversationWithUserMessage : c));
+        setConversations(prev => prev.map(c => c.id === finalConversationId ? updatedConversation : c));
         
         if (user) {
             try {
-                await fetch(`/api/conversations/${conversationToUpdateId}`, {
+                await fetch(`/api/conversations/${finalConversationId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ title: newTitle }),
@@ -174,7 +164,7 @@ export function ChatLayout({ user }: { user: User | null }) {
                 console.error("Failed to update title", error);
             }
         } else {
-            guestConversationStore[conversationToUpdateId].title = newTitle;
+            guestConversationStore[finalConversationId].title = newTitle;
         }
     }
 
@@ -189,14 +179,14 @@ export function ChatLayout({ user }: { user: User | null }) {
 
     setConversations(prev =>
         prev.map(c =>
-            c.id === conversationToUpdateId
+            c.id === finalConversationId
                 ? { ...c, messages: [...c.messages, loadingMessage] }
                 : c
         )
     );
 
     try {
-      const aiResponse = await generateResponse(content);
+      const aiResponse = await generateResponse(prompt);
       const assistantMessage: Message = {
         id: nanoid(),
         role: 'assistant',
@@ -204,19 +194,21 @@ export function ChatLayout({ user }: { user: User | null }) {
         timestamp: new Date(),
       };
       
-      const finalMessages = [...updatedMessagesWithUser, assistantMessage];
+      const finalMessages = [...updatedMessages, assistantMessage];
+      
+      updatedConversation = { ...updatedConversation, messages: finalMessages };
 
       setConversations(prev =>
           prev.map(c =>
-              c.id === conversationToUpdateId
-                  ? { ...c, messages: finalMessages }
+              c.id === finalConversationId
+                  ? updatedConversation
                   : c
           )
       );
 
       if (user) {
         try {
-             await fetch(`/api/conversations/${conversationToUpdateId}`, {
+             await fetch(`/api/conversations/${finalConversationId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ messages: finalMessages }),
@@ -226,7 +218,7 @@ export function ChatLayout({ user }: { user: User | null }) {
              toast({ variant: 'destructive', title: 'Sync Error', description: 'Could not save conversation to the server.'})
         }
       } else {
-          guestConversationStore[conversationToUpdateId].messages = finalMessages;
+          guestConversationStore[finalConversationId].messages = finalMessages;
       }
 
     } catch (error) {
@@ -237,7 +229,7 @@ export function ChatLayout({ user }: { user: User | null }) {
       });
       setConversations(prev =>
         prev.map(c =>
-            c.id === conversationToUpdateId
+            c.id === finalConversationId
                 ? { ...c, messages: c.messages.filter(m => m.id !== loadingMessageId) }
                 : c
         )
@@ -262,13 +254,15 @@ export function ChatLayout({ user }: { user: User | null }) {
     newMessages.push(updatedMessage);
 
     // Optimistically update the conversation
+    const updatedConversation = { ...originalConversation, messages: newMessages };
+
     setConversations(prev => {
         const newConversations = [...prev];
-        newConversations[conversationIndex] = { ...newConversations[conversationIndex], messages: newMessages };
+        newConversations[conversationIndex] = updatedConversation;
         return newConversations;
     });
 
-    await handleSendMessage(newContent);
+    await handleSendMessage(newContent, activeConversationId);
   };
 
   const activeConversation = conversations.find((c) => c.id === activeConversationId) || null;
@@ -289,7 +283,7 @@ export function ChatLayout({ user }: { user: User | null }) {
           conversation={activeConversation}
           onSendMessage={handleSendMessage}
           onEditMessage={handleEditMessage}
-          isLoading={isLoading && !activeConversation && !user}
+          isLoading={isLoading && !user}
         />
       </SidebarInset>
     </SidebarProvider>

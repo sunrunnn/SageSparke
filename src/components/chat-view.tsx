@@ -28,9 +28,10 @@ export function ChatView({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || !conversation) return;
+    if (!input.trim()) return;
+    const currentInput = input.trim();
     setInput('');
-    await onSendMessage(input.trim());
+    await onSendMessage(currentInput);
   };
 
   useEffect(() => {
@@ -96,13 +97,13 @@ export function ChatView({
                 }
               }}
               rows={1}
-              disabled={!conversation || isLoading}
+              disabled={isLoading}
             />
             <Button
               type="submit"
               size="icon"
               className="absolute right-2 top-1/2 -translate-y-1/2"
-              disabled={!input.trim() || !conversation || isLoading}
+              disabled={!input.trim() || isLoading}
             >
               <SendHorizonal size={20} />
             </Button>
