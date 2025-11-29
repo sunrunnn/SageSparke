@@ -24,9 +24,10 @@ export async function generateResponse(prompt: string): Promise<string> {
     });
 
     return llmResponse.text();
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error generating AI response:", error);
-    return "Sorry, I encountered an error while generating a response. Please check your API key and try again.";
+    return `Sorry, I encountered an error while generating a response. Please check your API key and try again.
+Error: ${error.message || 'An unknown error occurred.'}`;
   }
 }
 
@@ -34,12 +35,13 @@ export async function getPromptImprovement(input: ImprovePromptInput) {
   try {
     const result = await improvePromptFlow(input);
     return result;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error improving prompt:", error);
     return {
       improvedPrompt: "",
       explanation:
-        "Sorry, I encountered an error while trying to improve the prompt.",
+        `Sorry, I encountered an error while trying to improve the prompt.
+Error: ${error.message || 'An unknown error occurred.'}`,
     };
   }
 }
