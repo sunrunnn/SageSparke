@@ -67,7 +67,7 @@ export function ChatLayout({ user }: { user: User | null }) {
             const response = await fetch('/api/conversations', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: 'New Chat' }), // Simplified body
+                body: JSON.stringify({ title: 'New Chat' }),
             });
             if (!response.ok) {
               const errorData = await response.json();
@@ -82,7 +82,6 @@ export function ChatLayout({ user }: { user: User | null }) {
             toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to create new conversation.'});
         }
     } else {
-        // Guest user logic
         const newId = nanoid();
         const newConversation: Conversation = {
           id: newId,
@@ -102,7 +101,7 @@ export function ChatLayout({ user }: { user: User | null }) {
   const createNewConversation = useCallback(async (initialPrompt: string): Promise<Conversation | null> => {
     setIsNewChatLoading(true);
     let newConversation: Conversation | null = null;
-    const initialTitle = await getConversationTitle(initialPrompt);
+    const initialTitle = await getConversationTitle(initialPrompt || 'Image Analysis');
 
     if (user) {
         try {
@@ -141,7 +140,7 @@ export function ChatLayout({ user }: { user: User | null }) {
   }, [user, toast]);
 
 
-  const handleSendMessage = async (prompt: string) => {
+  const handleSendMessage = async (prompt: string, imageUrl?: string) => {
     let currentConversationId = activeConversationId;
     let conversation = conversations.find(c => c.id === currentConversationId);
 
@@ -157,6 +156,7 @@ export function ChatLayout({ user }: { user: User | null }) {
       id: nanoid(),
       role: 'user',
       content: prompt,
+      imageUrl,
       timestamp: new Date(),
     };
 
@@ -166,7 +166,7 @@ export function ChatLayout({ user }: { user: User | null }) {
     
     // Update title for the very first message
     if (conversation.messages.length === 0 && conversation.title === 'New Chat') {
-      const newTitle = await getConversationTitle(prompt);
+      const newTitle = await getConversationTitle(prompt || 'Image Analysis');
       updatedConversation.title = newTitle;
       if (user) {
          try {
@@ -199,7 +199,7 @@ export function ChatLayout({ user }: { user: User | null }) {
     
     // Generate AI response
     try {
-      const aiResponse = await generateResponse(prompt);
+      const aiResponse = await generateResponse(prompt, imageUrl);
       const assistantMessage: Message = {
         id: nanoid(),
         role: 'assistant',
@@ -244,10 +244,14 @@ export function ChatLayout({ user }: { user: User | null }) {
     const originalConversation = conversations[conversationIndex];
     const messageIndex = originalConversation.messages.findIndex(m => m.id === messageId);
     if (messageIndex === -1) return;
+    
+    const originalMessage = originalConversation.messages[messageIndex];
 
-    const newMessages = originalConversation.messages.slice(0, messageIndex);
-    const updatedMessage = { ...originalConversation.messages[messageIndex], content: newContent, timestamp: new Date() };
-    newMessages.push(updatedMessage);
+    // For simplicity, we trigger a new response. A more complex implementation
+    // could involve regenerating from the point of the edit.
+    const newMessages = originalConversation.messages.slice(0, messageIndex + 1);
+    newMessages[messageIndex] = { ...originalMessage, content: newContent };
+
 
     const updatedConversation = { ...originalConversation, messages: newMessages };
 
@@ -257,7 +261,7 @@ export function ChatLayout({ user }: { user: User | null }) {
         return newConversations;
     });
 
-    await handleSendMessage(newContent);
+    await handleSendMessage(newContent, originalMessage.imageUrl);
   };
 
   const activeConversation = conversations.find((c) => c.id === activeConversationId) || null;

@@ -18,6 +18,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { getPromptImprovement } from "@/app/actions";
 import { Skeleton } from "./ui/skeleton";
+import Image from "next/image";
 
 interface ChatMessageProps {
   message: Message;
@@ -146,6 +147,11 @@ export function ChatMessage({ message, onEdit }: ChatMessageProps) {
           </div>
         ) : (
           <div className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap">
+            {message.imageUrl && (
+              <div className="relative w-48 h-48 mb-2 rounded-md overflow-hidden border">
+                <Image src={message.imageUrl} alt="User upload" layout="fill" objectFit="cover" />
+              </div>
+            )}
             {message.content}
           </div>
         )}
