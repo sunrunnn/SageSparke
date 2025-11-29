@@ -20,7 +20,10 @@ export async function generateResponse(
 
   const history: GenkitMessage[] = messages.slice(0, -1).map((msg) => {
     const role = msg.role === "assistant" ? "model" : "user";
-    const content: Part[] = [{ text: msg.content }];
+    const content: Part[] = [];
+    if (msg.content) {
+      content.push({ text: msg.content });
+    }
     if (msg.imageUrl) {
       content.push({ media: { url: msg.imageUrl } });
     }
@@ -28,7 +31,10 @@ export async function generateResponse(
   });
 
   const lastMessage = messages[messages.length - 1];
-  const prompt: Part[] = [{ text: lastMessage.content }];
+  const prompt: Part[] = [];
+  if (lastMessage.content) {
+    prompt.push({ text: lastMessage.content });
+  }
   if (lastMessage.imageUrl) {
     prompt.push({ media: { url: lastMessage.imageUrl } });
   }
