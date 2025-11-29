@@ -61,69 +61,86 @@ export function ChatLayout({ user }: { user: User | null }) {
   const handleNewConversation = async () => {
     setIsNewChatLoading(true);
     const newId = nanoid();
-    const newConversation: Conversation = {
-      id: newId,
-      userId: user?.id || 'guest',
-      title: 'New Chat',
-      messages: [],
-      createdAt: new Date(),
-    };
+    let newConversation: Conversation;
 
     if (user) {
         try {
             const response = await fetch('/api/conversations', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ conversation: newConversation }),
+                body: JSON.stringify({ title: 'New Chat' }), // Pass the initial title
             });
             if (!response.ok) throw new Error('Failed to save conversation');
+            newConversation = await response.json();
+            newConversation.createdAt = new Date(newConversation.createdAt);
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: 'Failed to create new conversation.'});
             setIsNewChatLoading(false);
             return;
         }
     } else {
-        guestConversationStore[newId] = newConversation;
-    }
-    
-    setConversations(prev => [newConversation, ...prev]);
-    setActiveConversationId(newId);
-    setIsNewChatLoading(false);
-  };
-
-  const handleSendMessage = async (prompt: string, conversationId?: string) => {
-    const activeId = conversationId || activeConversationId;
-    let conversationToUpdate = conversations.find(c => c.id === activeId);
-
-    // If there is no active conversation, create a new one first.
-    if (!conversationToUpdate) {
-        const newId = nanoid();
-        const newConversation: Conversation = {
+        newConversation = {
           id: newId,
-          userId: user?.id || 'guest',
+          userId: 'guest',
           title: 'New Chat',
           messages: [],
           createdAt: new Date(),
         };
+        guestConversationStore[newId] = newConversation;
+    }
+    
+    setConversations(prev => [newConversation, ...prev]);
+    setActiveConversationId(newConversation.id);
+    setIsNewChatLoading(false);
+  };
 
+  const handleSendMessage = async (prompt: string, conversationId?: string) => {
+    let activeId = conversationId || activeConversationId;
+    let conversationToUpdate = conversations.find(c => c.id === activeId);
+
+    // If there is no active conversation, create a new one first.
+    if (!conversationToUpdate) {
+        setIsNewChatLoading(true);
         if (user) {
             try {
-                await fetch('/api/conversations', {
+                const response = await fetch('/api/conversations', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ conversation: newConversation }),
+                    body: JSON.stringify({ title: 'New Chat' }),
                 });
+                if (!response.ok) throw new Error('Failed to create new conversation.');
+                const newConv = await response.json();
+                newConv.createdAt = new Date(newConv.createdAt);
+                setConversations(prev => [newConv, ...prev]);
+                setActiveConversationId(newConv.id);
+                conversationToUpdate = newConv;
+                activeId = newConv.id;
             } catch (error) {
                 toast({ variant: 'destructive', title: 'Error', description: 'Failed to create new conversation.'});
+                setIsNewChatLoading(false);
                 return;
             }
         } else {
+            const newId = nanoid();
+            const newConversation: Conversation = {
+              id: newId,
+              userId: 'guest',
+              title: 'New Chat',
+              messages: [],
+              createdAt: new Date(),
+            };
             guestConversationStore[newId] = newConversation;
+            setConversations(prev => [newConversation, ...prev]);
+            setActiveConversationId(newId);
+            conversationToUpdate = newConversation;
+            activeId = newId;
         }
-        
-        setConversations(prev => [newConversation, ...prev]);
-        setActiveConversationId(newId);
-        conversationToUpdate = newConversation;
+        setIsNewChatLoading(false);
+    }
+    
+    if (!activeId || !conversationToUpdate) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not find active conversation.'});
+        return;
     }
     
     const userMessage: Message = {
@@ -283,7 +300,7 @@ export function ChatLayout({ user }: { user: User | null }) {
           conversation={activeConversation}
           onSendMessage={handleSendMessage}
           onEditMessage={handleEditMessage}
-          isLoading={isLoading && !user}
+          isLoading={!user && conversations.length === 0 && isLoading}
         />
       </SidebarInset>
     </SidebarProvider>

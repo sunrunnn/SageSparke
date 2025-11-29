@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/session';
 import { Conversation } from '@/lib/types';
+import { nanoid } from 'nanoid';
 
 export async function GET(req: NextRequest) {
     const session = await getSession();
@@ -29,23 +30,23 @@ export async function POST(req: NextRequest) {
     }
     
     try {
-        const { conversation } = await req.json() as { conversation: Conversation };
-        if (conversation.userId !== session.userId) {
-             return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
-        }
+        const body = await req.json();
+        const { title, messages } = body;
+        
+        const newConversation: Conversation = {
+            id: nanoid(),
+            userId: session.userId,
+            title: title || 'New Chat',
+            messages: messages || [],
+            createdAt: new Date(),
+        };
 
         const database = await db.read();
         
-        // Check for duplicates
-        const existingConversation = database.conversations.find(c => c.id === conversation.id);
-        if (existingConversation) {
-            return NextResponse.json({ message: 'Conversation already exists' }, { status: 409 });
-        }
-        
-        database.conversations.push(conversation);
+        database.conversations.push(newConversation);
         await db.write(database);
         
-        return NextResponse.json(conversation, { status: 201 });
+        return NextResponse.json(newConversation, { status: 201 });
     } catch (error) {
         console.error('Failed to create conversation:', error);
         return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
