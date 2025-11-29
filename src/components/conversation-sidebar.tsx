@@ -27,6 +27,7 @@ interface ConversationSidebarProps {
   onConversationSelect: (id: string) => void;
   onNewConversation: () => void;
   isLoading: boolean;
+  isNewChatLoading: boolean;
   userNav: React.ReactNode;
 }
 
@@ -36,6 +37,7 @@ export function ConversationSidebar({
   onConversationSelect,
   onNewConversation,
   isLoading,
+  isNewChatLoading,
   userNav,
 }: ConversationSidebarProps) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -95,9 +97,10 @@ export function ConversationSidebar({
           variant="outline"
           className="flex-1 justify-start"
           onClick={onNewConversation}
+          disabled={isNewChatLoading}
         >
           <Plus className="mr-2 h-4 w-4" />
-          New Chat
+          {isNewChatLoading ? 'Creating...' : 'New Chat'}
         </Button>
       </SidebarFooter>
     </Sidebar>
