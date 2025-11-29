@@ -8,142 +8,147 @@ import { useState, useEffect } from 'react';
 import type { Conversation, Message } from '@/lib/types';
 import { generateResponse, getConversationTitle } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
-import { useCollection, useUser, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, addDoc, serverTimestamp, doc, setDoc, writeBatch } from 'firebase/firestore';
-import { ProfileMenu } from './profile-menu';
+import { nanoid } from 'nanoid';
+
+// A simple in-memory store for conversations.
+// In a real app, you would use a database.
+const conversationStore: { [key: string]: Conversation } = {};
 
 export function ChatLayout() {
-  const { user } = useUser();
-  const firestore = useFirestore();
-
-  const conversationsQuery = useMemoFirebase(() => 
-    user ? query(collection(firestore, 'users', user.uid, 'conversations'), orderBy('createdAt', 'desc')) : null
-  , [firestore, user]);
-
-  const { data: conversations, isLoading: conversationsLoading } = useCollection<Omit<Conversation, 'messages'>>(conversationsQuery);
-
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const { toast } = useToast();
-  
-  const messagesQuery = useMemoFirebase(() => 
-    (user && activeConversationId) ? query(collection(firestore, 'users', user.uid, 'conversations', activeConversationId, 'messages'), orderBy('timestamp', 'asc')) : null
-  , [firestore, user, activeConversationId]);
-  
-  const { data: messages, isLoading: messagesLoading } = useCollection<Message>(messagesQuery);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Load conversations from our "store" on initial render
   useEffect(() => {
-    if (!conversationsLoading && conversations && conversations.length > 0) {
-      if (!activeConversationId || !conversations.some(c => c.id === activeConversationId)) {
-        setActiveConversationId(conversations[0].id);
-      }
+    const loadedConversations = Object.values(conversationStore).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    setConversations(loadedConversations);
+    if (loadedConversations.length > 0) {
+      setActiveConversationId(loadedConversations[0].id);
+    } else {
+      // Create a new one if none exist
+      handleNewConversation();
     }
-  }, [conversations, conversationsLoading, activeConversationId]);
+    setIsLoading(false);
+  }, []);
 
-  const handleNewConversation = async () => {
-    if (!user) return;
-    const newConversationRef = await addDoc(collection(firestore, 'users', user.uid, 'conversations'), {
+  const handleNewConversation = () => {
+    const newId = nanoid();
+    const newConversation: Conversation = {
+      id: newId,
       title: 'New Chat',
-      createdAt: serverTimestamp(),
-      userId: user.uid,
-    });
-    setActiveConversationId(newConversationRef.id);
+      messages: [],
+      createdAt: new Date(),
+    };
+    conversationStore[newId] = newConversation;
+    setConversations(prev => [newConversation, ...prev]);
+    setActiveConversationId(newId);
   };
 
   const handleSendMessage = async (content: string) => {
-    if (!activeConversationId || !user) return;
+    if (!activeConversationId) return;
 
-    const userMessage: Omit<Message, 'id' | 'timestamp'> = {
+    const userMessage: Message = {
+      id: nanoid(),
       role: 'user',
       content,
+      timestamp: new Date(),
     };
 
-    const messagesCol = collection(firestore, 'users', user.uid, 'conversations', activeConversationId, 'messages');
-    
-    await addDoc(messagesCol, {
-      ...userMessage,
-      timestamp: serverTimestamp(),
-    });
+    // Update local state immediately for optimistic UI
+    const activeConv = conversationStore[activeConversationId];
+    activeConv.messages.push(userMessage);
 
-    const activeConv = conversations?.find(c => c.id === activeConversationId);
-    if(activeConv && messages?.length === 0) {
-        const newTitle = await getConversationTitle(content);
-        await setDoc(doc(firestore, 'users', user.uid, 'conversations', activeConversationId), { title: newTitle }, { merge: true });
+    setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...activeConv } : c));
+
+    // Handle title generation for the first message
+    if (activeConv.messages.length === 1) {
+      const newTitle = await getConversationTitle(content);
+      activeConv.title = newTitle;
+      setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...activeConv, title: newTitle } : c));
     }
-
-    // Add a temporary loading message locally
-    const loadingMessageId = 'loading-' + Date.now();
-    const tempMessages = [...(messages || []), { id: 'temp-user', role: 'user', content, timestamp: serverTimestamp() as any}, { id: loadingMessageId, role: 'assistant', content: '', isLoading: true, timestamp: serverTimestamp() as any }];
+    
+    // Add a temporary loading message
+    const loadingMessageId = nanoid();
+    const loadingMessage: Message = {
+      id: loadingMessageId,
+      role: 'assistant',
+      content: '',
+      isLoading: true,
+      timestamp: new Date(),
+    };
+    activeConv.messages.push(loadingMessage);
+    setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...activeConv } : c));
 
     try {
       const aiResponse = await generateResponse(content);
-      const assistantMessage: Omit<Message, 'id' | 'timestamp'> = {
+      const assistantMessage: Message = {
+        id: nanoid(),
         role: 'assistant',
         content: aiResponse,
+        timestamp: new Date(),
       };
-      await addDoc(messagesCol, {
-        ...assistantMessage,
-        timestamp: serverTimestamp(),
-      });
+      
+      // Replace loading message with the actual response
+      activeConv.messages = activeConv.messages.filter(m => m.id !== loadingMessageId);
+      activeConv.messages.push(assistantMessage);
+      setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...activeConv } : c));
+
     } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Error',
         description: 'Failed to get response from AI.',
       });
+      // Remove loading message on error
+      activeConv.messages = activeConv.messages.filter(m => m.id !== loadingMessageId);
+      setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...activeConv } : c));
     }
   };
   
   const handleEditMessage = async (messageId: string, newContent: string) => {
-    if (!activeConversationId || !user) return;
+    if (!activeConversationId) return;
 
-    const activeConv = conversations?.find(c => c.id === activeConversationId);
-    if (!activeConv || !messages) return;
+    const activeConv = conversationStore[activeConversationId];
+    if (!activeConv) return;
     
-    const messageIndex = messages.findIndex(m => m.id === messageId);
+    const messageIndex = activeConv.messages.findIndex(m => m.id === messageId);
     if (messageIndex === -1) return;
 
-    const batch = writeBatch(firestore);
-
-    // Delete all messages after the edited one
-    for (let i = messageIndex + 1; i < messages.length; i++) {
-        const msgDocRef = doc(firestore, 'users', user.uid, 'conversations', activeConversationId, 'messages', messages[i].id);
-        batch.delete(msgDocRef);
-    }
+    // Create a new history up to the edited message
+    const newMessages = activeConv.messages.slice(0, messageIndex);
     
     // Update the edited message
-    const editedMsgRef = doc(firestore, 'users', user.uid, 'conversations', activeConversationId, 'messages', messageId);
-    batch.update(editedMsgRef, { content: newContent, timestamp: serverTimestamp() });
+    const updatedMessage = { ...activeConv.messages[messageIndex], content: newContent, timestamp: new Date() };
+    newMessages.push(updatedMessage);
+    
+    activeConv.messages = newMessages;
 
-    await batch.commit();
-
-    // Regenerate response
+    // Re-render with the truncated history
+    setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...activeConv } : c));
+    
+    // Regenerate response from the new content
     await handleSendMessage(newContent);
   };
 
-  const activeConversation = conversations?.find((c) => c.id === activeConversationId) || null;
-  const fullActiveConversation = activeConversation ? {
-    ...activeConversation,
-    messages: messages || []
-  } : null;
+  const activeConversation = conversations.find((c) => c.id === activeConversationId) || null;
 
   return (
     <SidebarProvider>
       <ConversationSidebar
-        conversations={conversations || []}
+        conversations={conversations}
         activeConversationId={activeConversationId}
         onConversationSelect={setActiveConversationId}
         onNewConversation={handleNewConversation}
-        isLoading={conversationsLoading}
+        isLoading={isLoading}
       />
       <SidebarInset>
-        <div className="absolute top-2 right-2 z-10">
-          <ProfileMenu />
-        </div>
         <ChatView
-          conversation={fullActiveConversation}
+          conversation={activeConversation}
           onSendMessage={handleSendMessage}
           onEditMessage={handleEditMessage}
-          isLoading={messagesLoading}
+          isLoading={isLoading && !activeConversation}
         />
       </SidebarInset>
     </SidebarProvider>

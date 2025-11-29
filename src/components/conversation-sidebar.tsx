@@ -79,7 +79,7 @@ export function ConversationSidebar({
                 >
                   <span className="w-full truncate">{conv.title}</span>
                    <span className="text-xs text-muted-foreground">
-                    {conv.createdAt ? formatDistanceToNow(conv.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
+                    {conv.createdAt ? formatDistanceToNow(conv.createdAt, { addSuffix: true }) : 'Just now'}
                   </span>
                 </SidebarMenuButton>
               </SidebarMenuItem>

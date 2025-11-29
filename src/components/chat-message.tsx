@@ -1,8 +1,8 @@
 "use client";
 
 import type { Message } from "@/lib/types";
-import { Bot, Pencil, Sparkles, ThumbsDown, ThumbsUp, User } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { Bot, Pencil, Sparkles, User } from "lucide-react";
+import { Avatar, AvatarFallback } from "./ui/avatar";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { useState } from "react";
