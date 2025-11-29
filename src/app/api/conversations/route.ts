@@ -39,13 +39,18 @@ export async function POST(req: NextRequest) {
         
         const newConversation: Conversation = {
             id: nanoid(),
-            userId: session.userId, // Use the userId from the session
+            userId: session.userId,
             title: title,
             messages: messages || [],
             createdAt: new Date(),
         };
 
         const database = await db.read();
+        
+        // Ensure conversations array exists
+        if (!database.conversations) {
+            database.conversations = [];
+        }
         
         database.conversations.push(newConversation);
         await db.write(database);
