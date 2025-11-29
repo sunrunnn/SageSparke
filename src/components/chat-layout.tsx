@@ -121,6 +121,11 @@ export function ChatLayout({ user }: { user: User | null }) {
     messageContent: string,
     imageUrl?: string
   ) => {
+    if (messageContent.toLowerCase().trim() === 'new chat') {
+        await handleNewConversation();
+        return;
+    }
+
     let finalConversationId = activeConversationId;
     let currentConversation = conversations.find(
       (c) => c.id === finalConversationId
