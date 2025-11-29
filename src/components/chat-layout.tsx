@@ -228,8 +228,8 @@ export function ChatLayout({ user }: { user: User | null }) {
       } else {
           guestConversationStore[finalConversationId].messages = finalMessages;
       }
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to get response from AI.'});
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to get response from AI.'});
       // Remove loading message on error
       setConversations(prev => prev.map(c => c.id === finalConversationId ? { ...c, messages: updatedMessagesForUI } : c));
     }
@@ -300,8 +300,8 @@ export function ChatLayout({ user }: { user: User | null }) {
             guestConversationStore[activeConversationId].messages = finalMessages;
         }
 
-    } catch (error) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Failed to get response from AI.' });
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to get response from AI.' });
         // On error, revert to the state before we added the loader
         setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...c, messages: messagesForRegeneration } : c));
     }
