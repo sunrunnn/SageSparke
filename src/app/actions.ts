@@ -93,3 +93,5 @@ export async function getConversationTitle(
     return conversation.split(" ").slice(0, 5).join(" ");
   }
 }
+
+    

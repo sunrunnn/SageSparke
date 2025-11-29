@@ -161,8 +161,8 @@ export function ChatLayout({ user }: { user: User | null }) {
     };
 
     // Optimistically update the UI with the user's message
-    const updatedMessages = [...(conversation.messages || []), userMessage];
-    let updatedConversation = { ...conversation, messages: updatedMessages };
+    const updatedMessagesForUI = [...(conversation.messages || []), userMessage];
+    let updatedConversation = { ...conversation, messages: updatedMessagesForUI };
     
     // Update title for the very first message
     if (conversation.messages.length === 0 && conversation.title === 'New Chat') {
@@ -199,7 +199,7 @@ export function ChatLayout({ user }: { user: User | null }) {
     
     // Generate AI response, passing the FULL history including the new user message
     try {
-      const aiResponse = await generateResponse(updatedMessages);
+      const aiResponse = await generateResponse(updatedMessagesForUI);
       const assistantMessage: Message = {
         id: nanoid(),
         role: 'assistant',
@@ -208,7 +208,7 @@ export function ChatLayout({ user }: { user: User | null }) {
       };
       
       // Replace loading message with the actual response
-      const finalMessages = [...updatedMessages, assistantMessage];
+      const finalMessages = [...updatedMessagesForUI, assistantMessage];
       updatedConversation = { ...updatedConversation, messages: finalMessages };
 
       setConversations(prev => prev.map(c => c.id === finalConversationId ? updatedConversation : c));
@@ -231,7 +231,7 @@ export function ChatLayout({ user }: { user: User | null }) {
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to get response from AI.'});
       // Remove loading message on error
-      setConversations(prev => prev.map(c => c.id === finalConversationId ? { ...c, messages: updatedMessages } : c));
+      setConversations(prev => prev.map(c => c.id === finalConversationId ? { ...c, messages: updatedMessagesForUI } : c));
     }
   };
   
@@ -332,3 +332,5 @@ export function ChatLayout({ user }: { user: User | null }) {
     </SidebarProvider>
   );
 }
+
+    
