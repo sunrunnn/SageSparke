@@ -1,0 +1,193 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the SageSpark application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "username": {
+          "type": "string",
+          "description": "The user's unique username."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address.",
+          "format": "email"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the user account was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "username",
+        "email",
+        "createdAt"
+      ]
+    },
+    "Conversation": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Conversation",
+      "type": "object",
+      "description": "Represents a conversation between the user and the AI model.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Conversation entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Conversation)"
+        },
+        "startTime": {
+          "type": "string",
+          "description": "Timestamp indicating when the conversation started.",
+          "format": "date-time"
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the conversation, as defined by the user. "
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "startTime"
+      ]
+    },
+    "Message": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Message",
+      "type": "object",
+      "description": "Represents a single message within a conversation.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Message entity."
+        },
+        "conversationId": {
+          "type": "string",
+          "description": "Reference to Conversation. (Relationship: Conversation 1:N Message)"
+        },
+        "sender": {
+          "type": "string",
+          "description": "Indicates who sent the message ('user' or 'ai')."
+        },
+        "content": {
+          "type": "string",
+          "description": "The text content of the message."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Timestamp indicating when the message was sent.",
+          "format": "date-time"
+        },
+        "editedMessageId": {
+          "type": "string",
+          "description": "Reference to Message. (Relationship: Message 1:N Message (history))"
+        }
+      },
+      "required": [
+        "id",
+        "conversationId",
+        "sender",
+        "content",
+        "timestamp"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/usernames/{username}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Ensures username uniqueness during signup. Document existence indicates the username is taken. Contains the userId of the user that owns the username.",
+          "params": [
+            {
+              "name": "username",
+              "description": "The unique username."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profile data. Path-based ownership ensures only the user can access their own profile.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique user ID."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/conversations/{conversationId}",
+        "definition": {
+          "entityName": "Conversation",
+          "schema": {
+            "$ref": "#/backend/entities/Conversation"
+          },
+          "description": "Stores conversations for a specific user.  Path-based ownership ensures only the user can access their own conversations.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique user ID."
+            },
+            {
+              "name": "conversationId",
+              "description": "The unique conversation ID."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/conversations/{conversationId}/messages/{messageId}",
+        "definition": {
+          "entityName": "Message",
+          "schema": {
+            "$ref": "#/backend/entities/Message"
+          },
+          "description": "Stores messages for a specific conversation. Path-based ownership ensures only the user can access their own messages.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique user ID."
+            },
+            {
+              "name": "conversationId",
+              "description": "The unique conversation ID."
+            },
+            {
+              "name": "messageId",
+              "description": "The unique message ID."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "This Firestore structure prioritizes security and scalability for the SageSpark application, adhering to the principles of Authorization Independence, Clarity of Intent, DBAC (Database-Based Access Control), and Rules Are Not Filters (QAPs). It focuses on the 'signin/signup' area and aims to prevent username collisions.\n\n*   **Authorization Independence:** Authorization data, like the `userId` inside of `Conversation` is denormalized, avoiding the need for `get()` calls in security rules to validate user access. This guarantees authorization rules can be enforced at the document level without external lookups.\n*   **Structural Segregation:** User data and application data are stored in separate collections, enabling clear and maintainable security rules.\n*   **Access Modeling:** User-owned data (conversations and messages) are organized under the `/users/{userId}` path, simplifying ownership-based security rules.\n\nQAPs (Rules are not Filters): The design addresses the need for secure list operations by enforcing all security rules at the document level, preventing the need to filter data after retrieval.\n\n1.  **Username Uniqueness:** The `/usernames/{username}` collection ensures usernames are unique during sign-up. The existence of a document with a given username indicates that the username is taken. Security rules ensure only new users can create these documents, and existing users cannot modify them. The `userId` in these documents is a redundant, but useful, record of ownership.\n2.  **User Profiles:** User profiles are stored in `/users/{userId}`. This facilitates simple path-based ownership security rules.\n3.  **Conversations and Messages:** Conversations and messages are nested under the user's document (`/users/{userId}/conversations/{conversationId}` and `/users/{userId}/conversations/{conversationId}/messages/{messageId}`), enforcing ownership and simplifying data access control. This allows easy retrieval of a user's conversations and messages and enforces that only the user can access them."
+  }
+}
