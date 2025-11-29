@@ -2,6 +2,7 @@
 
 import { generate } from "@genkit-ai/ai";
 import { ai } from "@/ai/genkit";
+import { googleAI } from "@genkit-ai/google-genai";
 import {
   improvePrompt as improvePromptFlow,
   type ImprovePromptInput,
@@ -15,7 +16,7 @@ export async function generateResponse(prompt: string): Promise<string> {
 
   try {
     const llmResponse = await generate({
-      model: ai.model,
+      model: googleAI('gemini-2.5-flash'),
       prompt: fullPrompt,
       config: {
         temperature: 0.5,
