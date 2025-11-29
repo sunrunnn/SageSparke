@@ -52,6 +52,16 @@ service cloud.firestore {
     function isExistingOwner(userId) {
       return isOwner(userId) && resource != null;
     }
+    
+    // Checks if the incoming data for user creation is valid
+    function isValidUserCreation(userId) {
+      let data = request.resource.data;
+      return isOwner(userId)
+          && data.id == userId
+          && data.username is string && data.username.size() > 0
+          && data.email == request.auth.token.email
+          && data.createdAt == request.time;
+    }
 
     // --------------------------------------------------------------------
     // Collection Rules
@@ -94,7 +104,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isOwner(userId);
       allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow create: if isValidUserCreation(userId);
       allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(userId);
 

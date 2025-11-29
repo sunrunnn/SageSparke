@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth, useFirestore } from "@/firebase";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, getDoc, writeBatch } from "firebase/firestore";
+import { doc, getDoc, serverTimestamp, writeBatch } from "firebase/firestore";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -55,7 +55,7 @@ export default function SignupPage() {
         id: user.uid,
         username,
         email,
-        createdAt: new Date(),
+        createdAt: serverTimestamp(),
       });
       batch.set(usernameRef, { userId: user.uid });
       
