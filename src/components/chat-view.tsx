@@ -12,9 +12,9 @@ import { Skeleton } from './ui/skeleton';
 import Image from 'next/image';
 
 interface ChatViewProps {
-  conversation: Conversation | null;
+  conversation: Conversation | undefined;
   onSendMessage: (content: string, imageUrl?: string) => Promise<void>;
-  onEditMessage: (id: string, newContent: string) => void;
+  onEditMessage: (conversationId: string, messageId: string, newContent: string) => void;
   isLoading: boolean;
 }
 
@@ -65,7 +65,7 @@ export function ChatView({
   }, [conversation?.messages, isLoading]);
 
   const renderContent = () => {
-    if (isLoading) {
+    if (isLoading && !conversation) {
       return (
         <div className="p-4 space-y-4">
           <Skeleton className="h-16 w-full" />
@@ -86,7 +86,7 @@ export function ChatView({
               key={msg.id}
               message={msg}
               isLastUserMessage={msg.role === 'user' && index === lastUserMessageIndex}
-              onEdit={onEditMessage}
+              onEdit={(messageId, newContent) => onEditMessage(conversation!.id, messageId, newContent)}
             />
           ))}
         </div>

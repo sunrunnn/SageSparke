@@ -68,7 +68,7 @@ export function ChatLayout({ user }: { user: User | null }) {
     loadConversations();
   }, [loadConversations]);
 
-  const handleNewConversation = async () => {
+  const handleNewConversation = async (): Promise<Conversation | undefined> => {
     setIsNewChatLoading(true);
     const newConversation: Conversation = {
       id: nanoid(),
@@ -78,8 +78,8 @@ export function ChatLayout({ user }: { user: User | null }) {
       userId: user?.id,
     };
 
-    if (user) {
-      try {
+    try {
+      if (user) {
         const response = await fetch("/api/conversations", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -98,19 +98,23 @@ export function ChatLayout({ user }: { user: User | null }) {
         createdConversation.createdAt = new Date(createdConversation.createdAt);
         setConversations((prev) => [createdConversation, ...prev]);
         setActiveConversationId(createdConversation.id);
-      } catch (error: any) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: error.message,
-        });
+        return createdConversation;
+      } else {
+        guestConversationStore[newConversation.id] = newConversation;
+        setConversations((prev) => [newConversation, ...prev]);
+        setActiveConversationId(newConversation.id);
+        return newConversation;
       }
-    } else {
-      guestConversationStore[newConversation.id] = newConversation;
-      setConversations((prev) => [newConversation, ...prev]);
-      setActiveConversationId(newConversation.id);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+      return undefined;
+    } finally {
+      setIsNewChatLoading(false);
     }
-    setIsNewChatLoading(false);
   };
 
   const handleSendMessage = async (
@@ -124,43 +128,13 @@ export function ChatLayout({ user }: { user: User | null }) {
 
     // If there is no active conversation, create a new one first.
     if (!currentConversation) {
-      const newConvId = nanoid();
-      const newConv: Conversation = {
-        id: newConvId,
-        title: "New Chat",
-        messages: [],
-        createdAt: new Date(),
-        userId: user?.id,
-      };
-
-      if (user) {
-        try {
-          const response = await fetch("/api/conversations", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: newConv.id, title: newConv.title }),
-          });
-          if (!response.ok) throw new Error("Failed to create conversation");
-          const createdConv = await response.json();
-          createdConv.createdAt = new Date(createdConv.createdAt);
-          setConversations((prev) => [createdConv, ...prev]);
-          currentConversation = createdConv;
-        } catch (error) {
-          console.error(error);
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Could not start a new conversation.",
-          });
-          return;
-        }
+      const newConversation = await handleNewConversation();
+      if (newConversation) {
+        finalConversationId = newConversation.id;
+        currentConversation = newConversation;
       } else {
-        guestConversationStore[newConv.id] = newConv;
-        setConversations((prev) => [newConv, ...prev]);
-        currentConversation = newConv;
+        return; // Error is already handled in handleNewConversation
       }
-      setActiveConversationId(newConv.id);
-      finalConversationId = newConv.id;
     }
 
 
@@ -237,7 +211,7 @@ export function ChatLayout({ user }: { user: User | null }) {
           });
         }
       } else {
-        guestConversationStore[finalConversationId].messages = finalMessages;
+        guestConversationStore[finalConversationId!].messages = finalMessages;
       }
 
       // After the first proper exchange, generate a title
@@ -265,7 +239,7 @@ export function ChatLayout({ user }: { user: User | null }) {
                   body: JSON.stringify({ title }),
                 });
               } else {
-                guestConversationStore[finalConversationId].title = title;
+                guestConversationStore[finalConversationId!].title = title;
               }
             }
           } catch (error) {
