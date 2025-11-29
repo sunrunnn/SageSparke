@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SageSpark</string>
+    <string name="title_activity_main">SageSpark</string>
+    <string name="package_name">com.sagespark.app</string>
+    <string name="custom_url_scheme">com.sagespark.app</string>
+</resources>
