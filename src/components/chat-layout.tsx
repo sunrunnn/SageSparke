@@ -2,6 +2,7 @@
 
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { ConversationSidebar } from './conversation-sidebar';
+import { UserNav } from './user-nav';
 import { ChatView } from './chat-view';
 import { useState, useEffect } from 'react';
 import type { Conversation, Message } from '@/lib/types';
@@ -9,40 +10,47 @@ import { generateResponse, getConversationTitle } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { nanoid } from 'nanoid';
 
-// A simple in-memory store for conversations.
-// In a real app, you would use a database.
-const conversationStore: { [key: string]: Conversation } = {};
+// A simple in-memory store for conversations for guest users.
+// Logged-in user conversations will be fetched from the backend.
+const guestConversationStore: { [key: string]: Conversation } = {};
 
-export function ChatLayout() {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+export function ChatLayout({ initialConversations, user }: { initialConversations: Conversation[], user: { username: string } | null }) {
+  const [conversations, setConversations] = useState<Conversation[]>(initialConversations);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Load conversations from our "store" on initial render
   useEffect(() => {
-    const loadedConversations = Object.values(conversationStore).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    setConversations(loadedConversations);
-    if (loadedConversations.length > 0) {
-      setActiveConversationId(loadedConversations[0].id);
+    // If there are initial conversations, set the first one as active.
+    // Otherwise, create a new one.
+    if (conversations.length > 0) {
+      setActiveConversationId(conversations[0].id);
     } else {
-      // Create a new one if none exist
       handleNewConversation();
     }
-    setIsLoading(false);
-  }, []);
+  }, [conversations]);
 
-  const handleNewConversation = () => {
+
+  const handleNewConversation = async () => {
+    setIsLoading(true);
     const newId = nanoid();
     const newConversation: Conversation = {
       id: newId,
+      userId: user?.username || 'guest',
       title: 'New Chat',
       messages: [],
       createdAt: new Date(),
     };
-    conversationStore[newId] = newConversation;
+
+    if (user) {
+        // TODO: API call to create conversation in the backend
+    } else {
+        guestConversationStore[newId] = newConversation;
+    }
+    
     setConversations(prev => [newConversation, ...prev]);
     setActiveConversationId(newId);
+    setIsLoading(false);
   };
 
   const handleSendMessage = async (content: string) => {
@@ -55,20 +63,24 @@ export function ChatLayout() {
       timestamp: new Date(),
     };
 
-    // Update local state immediately for optimistic UI
-    const activeConv = conversationStore[activeConversationId];
-    activeConv.messages.push(userMessage);
+    // Optimistically update UI
+    setConversations(prev =>
+        prev.map(c =>
+            c.id === activeConversationId
+                ? { ...c, messages: [...c.messages, userMessage] }
+                : c
+        )
+    );
 
-    setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...activeConv } : c));
-
-    // Handle title generation for the first message
-    if (activeConv.messages.length === 1) {
-      const newTitle = await getConversationTitle(content);
-      activeConv.title = newTitle;
-      setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...activeConv, title: newTitle } : c));
-    }
+    const currentConversation = conversations.find(c => c.id === activeConversationId);
     
-    // Add a temporary loading message
+    // Generate title for first message
+    if (currentConversation && currentConversation.messages.length === 1) {
+        const newTitle = await getConversationTitle(content);
+        setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...c, title: newTitle } : c));
+        // TODO: API call to update title
+    }
+
     const loadingMessageId = nanoid();
     const loadingMessage: Message = {
       id: loadingMessageId,
@@ -77,8 +89,14 @@ export function ChatLayout() {
       isLoading: true,
       timestamp: new Date(),
     };
-    activeConv.messages.push(loadingMessage);
-    setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...activeConv } : c));
+
+    setConversations(prev =>
+        prev.map(c =>
+            c.id === activeConversationId
+                ? { ...c, messages: [...c.messages, loadingMessage] }
+                : c
+        )
+    );
 
     try {
       const aiResponse = await generateResponse(content);
@@ -89,45 +107,54 @@ export function ChatLayout() {
         timestamp: new Date(),
       };
       
-      // Replace loading message with the actual response
-      activeConv.messages = activeConv.messages.filter(m => m.id !== loadingMessageId);
-      activeConv.messages.push(assistantMessage);
-      setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...activeConv } : c));
+      setConversations(prev =>
+          prev.map(c =>
+              c.id === activeConversationId
+                  ? { ...c, messages: c.messages.filter(m => m.id !== loadingMessageId).concat(assistantMessage) }
+                  : c
+          )
+      );
 
+      // TODO: API call to save messages
     } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Error',
         description: 'Failed to get response from AI.',
       });
-      // Remove loading message on error
-      activeConv.messages = activeConv.messages.filter(m => m.id !== loadingMessageId);
-      setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...activeConv } : c));
+      setConversations(prev =>
+        prev.map(c =>
+            c.id === activeConversationId
+                ? { ...c, messages: c.messages.filter(m => m.id !== loadingMessageId) }
+                : c
+        )
+      );
     }
   };
   
   const handleEditMessage = async (messageId: string, newContent: string) => {
     if (!activeConversationId) return;
 
-    const activeConv = conversationStore[activeConversationId];
-    if (!activeConv) return;
-    
-    const messageIndex = activeConv.messages.findIndex(m => m.id === messageId);
+    // Find conversation and message index
+    const conversationIndex = conversations.findIndex(c => c.id === activeConversationId);
+    if (conversationIndex === -1) return;
+
+    const messageIndex = conversations[conversationIndex].messages.findIndex(m => m.id === messageId);
     if (messageIndex === -1) return;
 
     // Create a new history up to the edited message
-    const newMessages = activeConv.messages.slice(0, messageIndex);
-    
-    // Update the edited message
-    const updatedMessage = { ...activeConv.messages[messageIndex], content: newContent, timestamp: new Date() };
+    const newMessages = conversations[conversationIndex].messages.slice(0, messageIndex);
+    const updatedMessage = { ...conversations[conversationIndex].messages[messageIndex], content: newContent, timestamp: new Date() };
     newMessages.push(updatedMessage);
-    
-    activeConv.messages = newMessages;
 
-    // Re-render with the truncated history
-    setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...activeConv } : c));
+    // Optimistically update the conversation
+    setConversations(prev => {
+        const newConversations = [...prev];
+        newConversations[conversationIndex] = { ...newConversations[conversationIndex], messages: newMessages };
+        return newConversations;
+    });
     
-    // Regenerate response from the new content
+    // Regenerate response from the new content, which will handle the rest
     await handleSendMessage(newContent);
   };
 
@@ -141,6 +168,7 @@ export function ChatLayout() {
         onConversationSelect={setActiveConversationId}
         onNewConversation={handleNewConversation}
         isLoading={isLoading}
+        userNav={<UserNav user={user} />}
       />
       <SidebarInset>
         <ChatView

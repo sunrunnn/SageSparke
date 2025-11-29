@@ -1,4 +1,3 @@
-
 export type Message = {
   id: string;
   role: 'user' | 'assistant';
@@ -8,8 +7,15 @@ export type Message = {
 };
 
 export type Conversation = {
-  id:string;
+  id: string;
+  userId: string;
   title: string;
   messages: Message[];
   createdAt: Date;
+};
+
+export type User = {
+    id: string;
+    username: string;
+    password?: string;
 };

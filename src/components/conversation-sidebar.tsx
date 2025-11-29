@@ -27,6 +27,7 @@ interface ConversationSidebarProps {
   onConversationSelect: (id: string) => void;
   onNewConversation: () => void;
   isLoading: boolean;
+  userNav: React.ReactNode;
 }
 
 export function ConversationSidebar({
@@ -34,7 +35,8 @@ export function ConversationSidebar({
   activeConversationId,
   onConversationSelect,
   onNewConversation,
-  isLoading
+  isLoading,
+  userNav,
 }: ConversationSidebarProps) {
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -79,7 +81,7 @@ export function ConversationSidebar({
                 >
                   <span className="w-full truncate">{conv.title}</span>
                    <span className="text-xs text-muted-foreground">
-                    {conv.createdAt ? formatDistanceToNow(conv.createdAt, { addSuffix: true }) : 'Just now'}
+                    {conv.createdAt ? formatDistanceToNow(new Date(conv.createdAt), { addSuffix: true }) : 'Just now'}
                   </span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -87,10 +89,11 @@ export function ConversationSidebar({
           </SidebarMenu>
         </ScrollArea>
       </SidebarContent>
-      <SidebarFooter>
-        <Button
+      <SidebarFooter className="flex-row items-center gap-2">
+         {userNav}
+         <Button
           variant="outline"
-          className="w-full justify-start"
+          className="flex-1 justify-start"
           onClick={onNewConversation}
         >
           <Plus className="mr-2 h-4 w-4" />
