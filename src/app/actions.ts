@@ -1,6 +1,5 @@
 "use server";
 
-import { generate } from "@genkit-ai/ai";
 import { ai } from "@/ai/genkit";
 import {
   improvePrompt as improvePromptFlow,
@@ -21,7 +20,7 @@ export async function generateResponse(prompt: string): Promise<string> {
       },
     });
 
-    return llmResponse.text();
+    return llmResponse.text;
   } catch (error: any) {
     console.error("Error generating AI response:", error);
     return `Sorry, I encountered an error while generating a response. Please check your API key and try again.
