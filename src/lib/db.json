@@ -48,6 +48,18 @@
           "id": "OlT6OaICpC95ahI7Iv5OA",
           "role": "assistant",
           "timestamp": "2025-11-29T17:05:53.145Z"
+        },
+        {
+          "id": "fE_4wwaB232zWESn1i1Ps",
+          "role": "user",
+          "content": "hi",
+          "timestamp": "2025-11-29T17:41:33.893Z"
+        },
+        {
+          "id": "O4uR94NNOe-hWOR5yk2XD",
+          "role": "assistant",
+          "content": "Sorry, I encountered an error while generating a response. Please check your API key and try again. Error: llmResponse.text is not a function",
+          "timestamp": "2025-11-29T17:41:38.162Z"
         }
       ],
       "createdAt": "2025-11-29T16:55:26.366Z"

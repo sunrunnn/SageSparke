@@ -1,334 +1,403 @@
-'use client';
+"use client";
 
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
-import { ConversationSidebar } from './conversation-sidebar';
-import { UserNav } from './user-nav';
-import { ChatView } from './chat-view';
-import { useState, useEffect, useCallback } from 'react';
-import type { Conversation, Message, User } from '@/lib/types';
-import { generateResponse, getConversationTitle } from '@/app/actions';
-import { useToast } from '@/hooks/use-toast';
-import { nanoid } from 'nanoid';
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
+import { useState, useEffect, useCallback } from "react";
+import type { Conversation, Message, User } from "@/lib/types";
+import { generateResponse } from "@/app/actions";
+import { useToast } from "@/hooks/use-toast";
+import { nanoid } from "nanoid";
+import { ChatView } from "./chat-view";
+import { ConversationSidebar } from "./conversation-sidebar";
+import { getConversationTitle } from "@/app/actions";
 
-// A simple in-memory store for conversations for guest users.
-const guestConversationStore: { [key: string]: Conversation } = {};
+// In-memory store for guest conversations
+const guestConversationStore: Record<string, Conversation> = {};
 
 async function fetchUserConversations(): Promise<Conversation[]> {
-    try {
-        const response = await fetch(`/api/conversations`);
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Failed to fetch conversations');
-        }
-        const conversations = await response.json();
-        return conversations.map((c: any) => ({...c, createdAt: new Date(c.createdAt)}));
-    } catch (error) {
-        console.error(error);
-        return [];
+  try {
+    const response = await fetch(`/api/conversations`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || "Failed to fetch conversations");
     }
+    const conversations = await response.json();
+    return conversations.map((c: any) => ({
+      ...c,
+      createdAt: new Date(c.createdAt),
+    }));
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
 }
-
 
 export function ChatLayout({ user }: { user: User | null }) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [activeConversationId, setActiveConversationId] = useState<
+    string | null
+  >(null);
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [isNewChatLoading, setIsNewChatLoading] = useState(false);
 
-  useEffect(() => {
-    const loadConversations = async () => {
-      setIsLoading(true);
-      let fetchedConversations: Conversation[] = [];
-      if (user) {
-        fetchedConversations = await fetchUserConversations();
-      } else {
-        // For guest users, load from in-memory store
-        fetchedConversations = Object.values(guestConversationStore).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const loadConversations = useCallback(async () => {
+    setIsLoading(true);
+    if (user) {
+      const userConversations = await fetchUserConversations();
+      setConversations(userConversations);
+      if (userConversations.length > 0) {
+        setActiveConversationId(userConversations[0].id);
       }
-      setConversations(fetchedConversations);
-      
-      if (fetchedConversations.length > 0) {
-        setActiveConversationId(fetchedConversations[0].id);
-      } else {
-        setActiveConversationId(null);
+    } else {
+      const guestConversations = Object.values(guestConversationStore);
+      setConversations(guestConversations);
+      if (guestConversations.length > 0) {
+        setActiveConversationId(guestConversations[0].id);
       }
-      setIsLoading(false);
-    };
-    loadConversations();
+    }
+    setIsLoading(false);
   }, [user]);
 
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
 
   const handleNewConversation = async () => {
     setIsNewChatLoading(true);
-    
+    const newConversation: Conversation = {
+      id: nanoid(),
+      title: "New Chat",
+      messages: [],
+      createdAt: new Date(),
+      userId: user?.id,
+    };
+
     if (user) {
-        try {
-            const response = await fetch('/api/conversations', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: 'New Chat' }),
-            });
-            if (!response.ok) {
-              const errorData = await response.json();
-              throw new Error(errorData.message || 'Failed to create new conversation');
-            }
-            const newConversation: Conversation = await response.json();
-            newConversation.createdAt = new Date(newConversation.createdAt);
-            
-            setConversations(prev => [newConversation, ...prev]);
-            setActiveConversationId(newConversation.id);
-        } catch (error: any) {
-            toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to create new conversation.'});
+      try {
+        const response = await fetch("/api/conversations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: newConversation.id,
+            title: newConversation.title,
+          }),
+        });
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(
+            errorData.message || "Failed to create new conversation"
+          );
         }
+        const createdConversation = await response.json();
+        createdConversation.createdAt = new Date(createdConversation.createdAt);
+        setConversations((prev) => [createdConversation, ...prev]);
+        setActiveConversationId(createdConversation.id);
+      } catch (error: any) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: error.message,
+        });
+      }
     } else {
-        const newId = nanoid();
-        const newConversation: Conversation = {
-          id: newId,
-          userId: 'guest',
-          title: 'New Chat',
-          messages: [],
-          createdAt: new Date(),
-        };
-        guestConversationStore[newId] = newConversation;
-        setConversations(prev => [newConversation, ...prev]);
-        setActiveConversationId(newConversation.id);
+      guestConversationStore[newConversation.id] = newConversation;
+      setConversations((prev) => [newConversation, ...prev]);
+      setActiveConversationId(newConversation.id);
     }
-    
     setIsNewChatLoading(false);
   };
-  
-  const createNewConversation = useCallback(async (initialPrompt: string): Promise<Conversation | null> => {
-    setIsNewChatLoading(true);
-    let newConversation: Conversation | null = null;
-    const initialTitle = await getConversationTitle(initialPrompt || 'Image Analysis');
 
-    if (user) {
+  const handleSendMessage = async (
+    messageContent: string,
+    imageUrl?: string
+  ) => {
+    let finalConversationId = activeConversationId;
+    let currentConversation = conversations.find(
+      (c) => c.id === finalConversationId
+    );
+
+    if (!finalConversationId) {
+      const newConv: Conversation = {
+        id: nanoid(),
+        title: "New Chat",
+        messages: [],
+        createdAt: new Date(),
+        userId: user?.id,
+      };
+      if (user) {
+        // Logic to save the new conversation to the backend
         try {
-            const response = await fetch('/api/conversations', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: initialTitle }),
-            });
-            if (!response.ok) throw new Error('Failed to create new conversation.');
-            const createdConv = await response.json();
-            createdConv.createdAt = new Date(createdConv.createdAt);
-            newConversation = createdConv;
+          const response = await fetch("/api/conversations", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: newConv.id, title: newConv.title }),
+          });
+          if (!response.ok) throw new Error("Failed to create conversation");
+          const createdConv = await response.json();
+          createdConv.createdAt = new Date(createdConv.createdAt);
+          setConversations((prev) => [createdConv, ...prev]);
+          finalConversationId = createdConv.id;
+          currentConversation = createdConv;
         } catch (error) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Failed to create new conversation.'});
-            setIsNewChatLoading(false);
-            return null;
+          console.error(error);
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Could not start a new conversation.",
+          });
+          return;
         }
-    } else {
-        const newId = nanoid();
-        newConversation = {
-          id: newId,
-          userId: 'guest',
-          title: initialTitle,
-          messages: [],
-          createdAt: new Date(),
-        };
-        guestConversationStore[newId] = newConversation;
+      } else {
+        guestConversationStore[newConv.id] = newConv;
+        setConversations((prev) => [newConv, ...prev]);
+        finalConversationId = newConv.id;
+        currentConversation = newConv;
+      }
+      setActiveConversationId(finalConversationId);
     }
 
-    if (newConversation) {
-        setConversations(prev => [newConversation!, ...prev]);
-        setActiveConversationId(newConversation!.id);
-    }
-    setIsNewChatLoading(false);
-    return newConversation;
-  }, [user, toast]);
-
-
-  const handleSendMessage = async (prompt: string, imageUrl?: string) => {
-    let currentConversationId = activeConversationId;
-    let conversation = conversations.find(c => c.id === currentConversationId);
-
-    // If there's no active conversation, create one first.
-    if (!conversation) {
-      const newConversation = await createNewConversation(prompt);
-      if (!newConversation) return; // Stop if conversation creation failed
-      conversation = newConversation;
-      currentConversationId = newConversation.id;
-    }
-    
     const userMessage: Message = {
       id: nanoid(),
-      role: 'user',
-      content: prompt,
-      imageUrl,
+      role: "user",
+      content: messageContent,
+      imageUrl: imageUrl,
       timestamp: new Date(),
     };
 
-    // Optimistically update the UI with the user's message
-    const updatedMessagesForUI = [...(conversation.messages || []), userMessage];
-    let updatedConversation = { ...conversation, messages: updatedMessagesForUI };
-    
-    // Update title for the very first message
-    if (conversation.messages.length === 0 && conversation.title === 'New Chat') {
-      const newTitle = await getConversationTitle(prompt || 'Image Analysis');
-      updatedConversation.title = newTitle;
-      if (user) {
-         try {
-            await fetch(`/api/conversations/${currentConversationId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: newTitle }),
-            });
-        } catch (error) {
-            console.error("Failed to update title", error);
-        }
-      } else {
-          guestConversationStore[currentConversationId!].title = newTitle;
-      }
-    }
-    
-    const finalConversationId = currentConversationId!;
-    setConversations(prev => prev.map(c => c.id === finalConversationId ? updatedConversation : c));
+    const updatedMessagesForUI = [
+      ...(currentConversation?.messages || []),
+      userMessage,
+    ];
 
-    // Add a loading message
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === finalConversationId
+          ? { ...c, messages: updatedMessagesForUI }
+          : c
+      )
+    );
+
     const loadingMessage: Message = {
       id: nanoid(),
-      role: 'assistant',
-      content: '',
+      role: "assistant",
+      content: "",
       isLoading: true,
       timestamp: new Date(),
     };
-    
-    setConversations(prev => prev.map(c => c.id === finalConversationId ? { ...c, messages: [...c.messages, loadingMessage] } : c));
-    
-    // Generate AI response, passing the FULL history including the new user message
+
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === finalConversationId
+          ? { ...c, messages: [...updatedMessagesForUI, loadingMessage] }
+          : c
+      )
+    );
+
     try {
-      const aiResponse = await generateResponse(updatedMessagesForUI);
-      const assistantMessage: Message = {
-        id: nanoid(),
-        role: 'assistant',
-        content: aiResponse,
+      const aiResponseText = await generateResponse(updatedMessagesForUI);
+
+      const aiMessage: Message = {
+        id: loadingMessage.id, // Use the same ID as the loading message
+        role: "assistant",
+        content: aiResponseText,
+        isLoading: false,
         timestamp: new Date(),
       };
-      
-      // Replace loading message with the actual response
-      const finalMessages = [...updatedMessagesForUI, assistantMessage];
-      updatedConversation = { ...updatedConversation, messages: finalMessages };
 
-      setConversations(prev => prev.map(c => c.id === finalConversationId ? updatedConversation : c));
+      const finalMessages = [...updatedMessagesForUI, aiMessage];
+
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === finalConversationId ? { ...c, messages: finalMessages } : c
+        )
+      );
 
       // Save to backend
       if (user) {
         try {
-             await fetch(`/api/conversations/${finalConversationId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ messages: finalMessages }),
-            });
+          await fetch(`/api/conversations/${finalConversationId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ messages: finalMessages }),
+          });
         } catch (error) {
-             console.error("Failed to save messages", error);
-             toast({ variant: 'destructive', title: 'Sync Error', description: 'Could not save conversation to the server.'})
+          console.error("Failed to save messages", error);
+          toast({
+            variant: "destructive",
+            title: "Sync Error",
+            description: "Could not save conversation to the server.",
+          });
         }
       } else {
-          guestConversationStore[finalConversationId].messages = finalMessages;
+        guestConversationStore[finalConversationId].messages = finalMessages;
+      }
+
+      // After the first proper exchange, generate a title
+      const conversationForTitle = conversations.find(
+        (c) => c.id === finalConversationId
+      );
+      if (
+        conversationForTitle &&
+        conversationForTitle.messages.length === 1 && // After user's first message
+        conversationForTitle.title === "New Chat"
+      ) {
+        setTimeout(async () => {
+          try {
+            const title = await getConversationTitle(finalMessages);
+            if (title) {
+              setConversations((prev) =>
+                prev.map((c) =>
+                  c.id === finalConversationId ? { ...c, title } : c
+                )
+              );
+              if (user) {
+                await fetch(`/api/conversations/${finalConversationId}`, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ title }),
+                });
+              } else {
+                guestConversationStore[finalConversationId].title = title;
+              }
+            }
+          } catch (error) {
+            console.error("Failed to generate title", error);
+          }
+        }, 1000);
       }
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to get response from AI.'});
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to get response from AI.",
+      });
       // Remove loading message on error
-      setConversations(prev => prev.map(c => c.id === finalConversationId ? { ...c, messages: updatedMessagesForUI } : c));
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === finalConversationId
+            ? { ...c, messages: updatedMessagesForUI }
+            : c
+        )
+      );
     }
   };
-  
-  const handleEditMessage = async (messageId: string, newContent: string) => {
-    if (!activeConversationId) return;
 
-    const conversationIndex = conversations.findIndex(c => c.id === activeConversationId);
-    if (conversationIndex === -1) return;
-    
-    const originalConversation = conversations[conversationIndex];
-    const messageIndex = originalConversation.messages.findIndex(m => m.id === messageId);
+  const handleEditMessage = async (
+    conversationId: string,
+    messageId: string,
+    newContent: string
+  ) => {
+    const conversation = conversations.find((c) => c.id === conversationId);
+    if (!conversation) return;
+
+    const messageIndex = conversation.messages.findIndex(
+      (m) => m.id === messageId
+    );
     if (messageIndex === -1) return;
-    
-    // Create a new array of messages up to the point of the edit.
-    const historyToRegenerate = originalConversation.messages.slice(0, messageIndex);
-    
-    const editedUserMessage: Message = {
-      ...originalConversation.messages[messageIndex],
+
+    // Create the history up to the edited message
+    const history = conversation.messages.slice(0, messageIndex);
+    const editedMessage = {
+      ...conversation.messages[messageIndex],
       content: newContent,
     };
-    
-    const messagesForUIRegeneration = [...historyToRegenerate, editedUserMessage];
 
-    // Update the UI optimistically with the edited message and remove subsequent messages.
-    const updatedConversation = { ...originalConversation, messages: messagesForUIRegeneration };
-
-    setConversations(prev => {
-        const newConversations = [...prev];
-        newConversations[conversationIndex] = updatedConversation;
-        return newConversations;
-    });
-
-    // Add a loading message
+    const updatedMessagesForUI = [...history, editedMessage];
     const loadingMessage: Message = {
-        id: nanoid(),
-        role: 'assistant',
-        content: '',
-        isLoading: true,
-        timestamp: new Date(),
+      id: nanoid(),
+      role: "assistant",
+      content: "",
+      isLoading: true,
+      timestamp: new Date(),
     };
-    
-    const messagesWithLoader = [...messagesForUIRegeneration, loadingMessage];
-    setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...c, messages: messagesWithLoader } : c));
+
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === conversationId
+          ? { ...c, messages: [...updatedMessagesForUI, loadingMessage] }
+          : c
+      )
+    );
 
     try {
-        const aiResponse = await generateResponse(messagesForUIRegeneration);
-        const assistantMessage: Message = {
-            id: nanoid(),
-            role: 'assistant',
-            content: aiResponse,
-            timestamp: new Date(),
-        };
+      const aiResponseText = await generateResponse(updatedMessagesForUI);
+      const aiMessage: Message = {
+        id: loadingMessage.id,
+        role: "assistant",
+        content: aiResponseText,
+        isLoading: false,
+        timestamp: new Date(),
+      };
 
-        const finalMessages = [...messagesForUIRegeneration, assistantMessage];
-        const finalConversation = { ...updatedConversation, messages: finalMessages };
+      const finalMessages = [...updatedMessagesForUI, aiMessage];
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === conversationId ? { ...c, messages: finalMessages } : c
+        )
+      );
 
-        setConversations(prev => prev.map(c => c.id === activeConversationId ? finalConversation : c));
-
-        if (user) {
-            await fetch(`/api/conversations/${activeConversationId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ messages: finalMessages }),
-            });
-        } else {
-            guestConversationStore[activeConversationId].messages = finalMessages;
-        }
-
+      // Save to backend
+      if (user) {
+        await fetch(`/api/conversations/${conversationId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: finalMessages }),
+        });
+      } else {
+        guestConversationStore[conversationId].messages = finalMessages;
+      }
     } catch (error: any) {
-        toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to get response from AI.' });
-        // On error, revert to the state before we added the loader
-        setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...c, messages: messagesForUIRegeneration } : c));
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to get response from AI.",
+      });
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === conversationId
+            ? { ...c, messages: updatedMessagesForUI }
+            : c
+        )
+      );
     }
   };
 
-
-  const activeConversation = conversations.find((c) => c.id === activeConversationId) || null;
+  const activeConversation = conversations.find(
+    (c) => c.id === activeConversationId
+  );
 
   return (
-    <SidebarProvider>
-      <ConversationSidebar
-        conversations={conversations}
-        activeConversationId={activeConversationId}
-        onConversationSelect={setActiveConversationId}
-        onNewConversation={handleNewConversation}
-        isLoading={isLoading}
-        isNewChatLoading={isNewChatLoading}
-        userNav={<UserNav user={user} />}
-      />
-      <SidebarInset>
+    <ResizablePanelGroup direction="horizontal" className="h-full w-full">
+      <ResizablePanel
+        defaultSize={20}
+        minSize={15}
+        maxSize={25}
+        className={cn("hidden md:block")}
+      >
+        <ConversationSidebar
+          conversations={conversations}
+          activeConversationId={activeConversationId}
+          setActiveConversationId={setActiveConversationId}
+          onNewConversation={handleNewConversation}
+          isLoading={isLoading}
+          isNewChatLoading={isNewChatLoading}
+          user={user}
+        />
+      </ResizablePanel>
+      <ResizableHandle withHandle className="hidden md:flex" />
+      <ResizablePanel defaultSize={80}>
         <ChatView
           conversation={activeConversation}
           onSendMessage={handleSendMessage}
           onEditMessage={handleEditMessage}
-          isLoading={isLoading && conversations.length === 0}
+          isLoading={isLoading}
         />
-      </SidebarInset>
-    </SidebarProvider>
+      </ResizablePanel>
+    </ResizablePanelGroup>
   );
 }
