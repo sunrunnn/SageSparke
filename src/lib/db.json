@@ -1,4 +1,10 @@
 {
-  "users": [],
+  "users": [
+    {
+      "id": "cmqHXA7Krlr-UnO7AUUeF",
+      "username": "sunrunnn",
+      "password": "$2a$10$ahEwvGE1l5rWQVO7Eu/F1u7e1e.qwMUP44xBukUeJNZJ9BkN1sFqS"
+    }
+  ],
   "conversations": []
 }

@@ -56,7 +56,6 @@ export default function SignupPage() {
       });
 
       router.push('/');
-      router.refresh();
     } catch (error: any) {
       toast({
         variant: 'destructive',

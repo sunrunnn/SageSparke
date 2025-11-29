@@ -56,7 +56,6 @@ export default function LoginPage() {
       });
 
       router.push('/');
-      router.refresh(); // Refresh to update session state
     } catch (error: any) {
       toast({
         variant: 'destructive',
