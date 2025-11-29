@@ -45,7 +45,7 @@ export function ChatLayout({ user }: { user: User | null }) {
         if (fetchedConversations.length > 0) {
           setActiveConversationId(fetchedConversations[0].id);
         } else {
-          handleNewConversation();
+          // No need to call new conversation creation here, let the user decide.
         }
       } else {
         // Handle guest user
@@ -53,8 +53,6 @@ export function ChatLayout({ user }: { user: User | null }) {
         setConversations(guestConvos);
         if (guestConvos.length > 0) {
             setActiveConversationId(guestConvos[0].id);
-        } else {
-            handleNewConversation();
         }
       }
       setIsLoading(false);
@@ -76,11 +74,12 @@ export function ChatLayout({ user }: { user: User | null }) {
 
     if (user) {
         try {
-            await fetch('/api/conversations', {
+            const response = await fetch('/api/conversations', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ conversation: newConversation }),
             });
+            if (!response.ok) throw new Error('Failed to save conversation');
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: 'Failed to create new conversation.'});
             setIsNewChatLoading(false);
@@ -96,8 +95,39 @@ export function ChatLayout({ user }: { user: User | null }) {
   };
 
   const handleSendMessage = async (content: string) => {
-    if (!activeConversationId) return;
+    let conversationToUpdateId = activeConversationId;
 
+    // If there is no active conversation, create a new one first.
+    if (!conversationToUpdateId) {
+        const newId = nanoid();
+        conversationToUpdateId = newId;
+        const newConversation: Conversation = {
+          id: newId,
+          userId: user?.id || 'guest',
+          title: 'New Chat',
+          messages: [],
+          createdAt: new Date(),
+        };
+
+        if (user) {
+            try {
+                await fetch('/api/conversations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ conversation: newConversation }),
+                });
+            } catch (error) {
+                toast({ variant: 'destructive', title: 'Error', description: 'Failed to create new conversation.'});
+                return;
+            }
+        } else {
+            guestConversationStore[newId] = newConversation;
+        }
+        
+        setConversations(prev => [newConversation, ...prev]);
+        setActiveConversationId(newId);
+    }
+    
     const userMessage: Message = {
       id: nanoid(),
       role: 'user',
@@ -105,14 +135,23 @@ export function ChatLayout({ user }: { user: User | null }) {
       timestamp: new Date(),
     };
 
-    const currentConversation = conversations.find(c => c.id === activeConversationId);
-    if (!currentConversation) return;
+    const currentConversation = conversations.find(c => c.id === conversationToUpdateId) || {
+        id: conversationToUpdateId,
+        userId: user?.id || 'guest',
+        title: 'New Chat',
+        messages: [],
+        createdAt: new Date(),
+    };
+
 
     // Optimistically update UI
+    const updatedMessagesWithUser = [...currentConversation.messages, userMessage];
+    let conversationWithUserMessage = {...currentConversation, messages: updatedMessagesWithUser};
+
     setConversations(prev =>
         prev.map(c =>
-            c.id === activeConversationId
-                ? { ...c, messages: [...c.messages, userMessage] }
+            c.id === conversationToUpdateId
+                ? conversationWithUserMessage
                 : c
         )
     );
@@ -120,10 +159,13 @@ export function ChatLayout({ user }: { user: User | null }) {
     // Generate title for first message
     if (currentConversation.messages.length === 0) {
         const newTitle = await getConversationTitle(content);
-        setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...c, title: newTitle } : c));
+        conversationWithUserMessage = {...conversationWithUserMessage, title: newTitle};
+
+        setConversations(prev => prev.map(c => c.id === conversationToUpdateId ? conversationWithUserMessage : c));
+        
         if (user) {
             try {
-                await fetch(`/api/conversations/${activeConversationId}`, {
+                await fetch(`/api/conversations/${conversationToUpdateId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ title: newTitle }),
@@ -131,6 +173,8 @@ export function ChatLayout({ user }: { user: User | null }) {
             } catch (error) {
                 console.error("Failed to update title", error);
             }
+        } else {
+            guestConversationStore[conversationToUpdateId].title = newTitle;
         }
     }
 
@@ -145,7 +189,7 @@ export function ChatLayout({ user }: { user: User | null }) {
 
     setConversations(prev =>
         prev.map(c =>
-            c.id === activeConversationId
+            c.id === conversationToUpdateId
                 ? { ...c, messages: [...c.messages, loadingMessage] }
                 : c
         )
@@ -160,26 +204,29 @@ export function ChatLayout({ user }: { user: User | null }) {
         timestamp: new Date(),
       };
       
-      const finalMessages = [...currentConversation.messages, userMessage, assistantMessage];
+      const finalMessages = [...updatedMessagesWithUser, assistantMessage];
 
       setConversations(prev =>
           prev.map(c =>
-              c.id === activeConversationId
-                  ? { ...c, messages: c.messages.filter(m => m.id !== loadingMessageId).concat(assistantMessage) }
+              c.id === conversationToUpdateId
+                  ? { ...c, messages: finalMessages }
                   : c
           )
       );
 
       if (user) {
         try {
-             await fetch(`/api/conversations/${activeConversationId}`, {
+             await fetch(`/api/conversations/${conversationToUpdateId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ messages: finalMessages }),
             });
         } catch (error) {
              console.error("Failed to save messages", error);
+             toast({ variant: 'destructive', title: 'Sync Error', description: 'Could not save conversation to the server.'})
         }
+      } else {
+          guestConversationStore[conversationToUpdateId].messages = finalMessages;
       }
 
     } catch (error) {
@@ -190,7 +237,7 @@ export function ChatLayout({ user }: { user: User | null }) {
       });
       setConversations(prev =>
         prev.map(c =>
-            c.id === activeConversationId
+            c.id === conversationToUpdateId
                 ? { ...c, messages: c.messages.filter(m => m.id !== loadingMessageId) }
                 : c
         )
@@ -204,13 +251,14 @@ export function ChatLayout({ user }: { user: User | null }) {
     // Find conversation and message index
     const conversationIndex = conversations.findIndex(c => c.id === activeConversationId);
     if (conversationIndex === -1) return;
-
-    const messageIndex = conversations[conversationIndex].messages.findIndex(m => m.id === messageId);
+    
+    const originalConversation = conversations[conversationIndex];
+    const messageIndex = originalConversation.messages.findIndex(m => m.id === messageId);
     if (messageIndex === -1) return;
 
     // Create a new history up to the edited message
-    const newMessages = conversations[conversationIndex].messages.slice(0, messageIndex);
-    const updatedMessage = { ...conversations[conversationIndex].messages[messageIndex], content: newContent, timestamp: new Date() };
+    const newMessages = originalConversation.messages.slice(0, messageIndex);
+    const updatedMessage = { ...originalConversation.messages[messageIndex], content: newContent, timestamp: new Date() };
     newMessages.push(updatedMessage);
 
     // Optimistically update the conversation
@@ -219,14 +267,7 @@ export function ChatLayout({ user }: { user: User | null }) {
         newConversations[conversationIndex] = { ...newConversations[conversationIndex], messages: newMessages };
         return newConversations;
     });
-    
-    // Create a new temporary conversation object for regeneration
-    const tempConversation = {
-      ...conversations[conversationIndex],
-      messages: newMessages,
-    }
 
-    // Call a modified send message that takes the conversation context
     await handleSendMessage(newContent);
   };
 
@@ -248,7 +289,7 @@ export function ChatLayout({ user }: { user: User | null }) {
           conversation={activeConversation}
           onSendMessage={handleSendMessage}
           onEditMessage={handleEditMessage}
-          isLoading={isLoading && !activeConversation}
+          isLoading={isLoading && !activeConversation && !user}
         />
       </SidebarInset>
     </SidebarProvider>

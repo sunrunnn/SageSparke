@@ -7,17 +7,27 @@ import { User, Conversation } from './types';
 
 const dbPath = path.join(process.cwd(), 'src', 'lib', 'db.json');
 
-async function readDb(): Promise<{ users: User[], conversations: Conversation[] }> {
+type DbData = {
+    users: User[];
+    conversations: Conversation[];
+}
+
+async function readDb(): Promise<DbData> {
     try {
         const fileContent = await fs.readFile(dbPath, 'utf-8');
-        return JSON.parse(fileContent);
+        const data = JSON.parse(fileContent);
+        // Ensure both users and conversations arrays exist
+        return {
+            users: data.users || [],
+            conversations: data.conversations || [],
+        };
     } catch (error) {
-        // If the file doesn't exist, return a default structure
+        // If the file doesn't exist or is invalid, return a default structure
         return { users: [], conversations: [] };
     }
 }
 
-async function writeDb(data: { users: User[], conversations: Conversation[] }): Promise<void> {
+async function writeDb(data: DbData): Promise<void> {
     await fs.writeFile(dbPath, JSON.stringify(data, null, 2), 'utf-8');
 }
 
