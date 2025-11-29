@@ -26,7 +26,7 @@ export async function generateResponse(messages: Message[]): Promise<string> {
       },
     });
 
-    return llmResponse.text();
+    return llmResponse.text;
   } catch (error) {
     console.error("Failed to generate response:", error);
     const errorMessage =
@@ -51,7 +51,7 @@ export async function getConversationTitle(messages: Message[]): Promise<string>
       },
     });
 
-    return llmResponse.text().replace(/"/g, "");
+    return llmResponse.text.replace(/"/g, "");
   } catch (error) {
     console.error("Failed to generate title:", error);
     return "New Chat";
