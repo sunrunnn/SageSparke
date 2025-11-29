@@ -197,7 +197,7 @@ export function ChatLayout({ user }: { user: User | null }) {
     
     setConversations(prev => prev.map(c => c.id === finalConversationId ? { ...c, messages: [...c.messages, loadingMessage] } : c));
     
-    // Generate AI response
+    // Generate AI response, passing the FULL history including the new user message
     try {
       const aiResponse = await generateResponse(updatedMessages);
       const assistantMessage: Message = {
@@ -245,13 +245,17 @@ export function ChatLayout({ user }: { user: User | null }) {
     const messageIndex = originalConversation.messages.findIndex(m => m.id === messageId);
     if (messageIndex === -1) return;
     
-    const originalMessage = originalConversation.messages[messageIndex];
-
-    // Create a new set of messages for regeneration
-    const messagesForRegeneration = originalConversation.messages.slice(0, messageIndex + 1);
-    messagesForRegeneration[messageIndex] = { ...originalMessage, content: newContent };
+    // Create a new array of messages up to the point of the edit.
+    const messagesForRegeneration = originalConversation.messages.slice(0, messageIndex);
     
-    // Update the UI optimistically with just the edited message
+    const editedUserMessage: Message = {
+      ...originalConversation.messages[messageIndex],
+      content: newContent,
+    };
+    
+    messagesForRegeneration.push(editedUserMessage);
+
+    // Update the UI optimistically with the edited message and remove subsequent messages.
     const updatedConversation = { ...originalConversation, messages: messagesForRegeneration };
 
     setConversations(prev => {
@@ -268,8 +272,9 @@ export function ChatLayout({ user }: { user: User | null }) {
         isLoading: true,
         timestamp: new Date(),
     };
-
-    setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...c, messages: [...c.messages, loadingMessage] } : c));
+    
+    const messagesWithLoader = [...messagesForRegeneration, loadingMessage];
+    setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...c, messages: messagesWithLoader } : c));
 
     try {
         const aiResponse = await generateResponse(messagesForRegeneration);
@@ -297,6 +302,7 @@ export function ChatLayout({ user }: { user: User | null }) {
 
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to get response from AI.' });
+        // On error, revert to the state before we added the loader
         setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...c, messages: messagesForRegeneration } : c));
     }
   };

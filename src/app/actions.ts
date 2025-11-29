@@ -18,6 +18,7 @@ export async function generateResponse(
     return "Something went wrong. No messages provided.";
   }
 
+  // The history is all messages EXCEPT the last one
   const history: GenkitMessage[] = messages.slice(0, -1).map((msg) => {
     const role = msg.role === "assistant" ? "model" : "user";
     const content: Part[] = [];
@@ -30,6 +31,7 @@ export async function generateResponse(
     return { role, content };
   });
 
+  // The prompt is the content of the very last message
   const lastMessage = messages[messages.length - 1];
   const prompt: Part[] = [];
   if (lastMessage.content) {
