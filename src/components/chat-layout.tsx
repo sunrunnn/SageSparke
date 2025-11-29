@@ -38,19 +38,17 @@ export function ChatLayout({ user }: { user: User | null }) {
   useEffect(() => {
     const loadConversations = async () => {
       setIsLoading(true);
+      let fetchedConversations: Conversation[] = [];
       if (user) {
-        const fetchedConversations = await fetchConversations();
-        setConversations(fetchedConversations);
-        if (fetchedConversations.length > 0) {
-          setActiveConversationId(fetchedConversations[0].id);
-        }
+        fetchedConversations = await fetchConversations();
       } else {
-        // Handle guest user
-        const guestConvos = Object.values(guestConversationStore);
-        setConversations(guestConvos);
-        if (guestConvos.length > 0) {
-            setActiveConversationId(guestConvos[0].id);
-        }
+        fetchedConversations = Object.values(guestConversationStore).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      }
+      setConversations(fetchedConversations);
+      if (fetchedConversations.length > 0) {
+        setActiveConversationId(fetchedConversations[0].id);
+      } else {
+        setActiveConversationId(null);
       }
       setIsLoading(false);
     };
@@ -60,7 +58,6 @@ export function ChatLayout({ user }: { user: User | null }) {
 
   const handleNewConversation = async () => {
     setIsNewChatLoading(true);
-    const newId = nanoid();
     let newConversation: Conversation;
 
     if (user) {
@@ -68,17 +65,21 @@ export function ChatLayout({ user }: { user: User | null }) {
             const response = await fetch('/api/conversations', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: 'New Chat' }), // Pass the initial title
+                body: JSON.stringify({ title: 'New Chat', messages: [] }),
             });
-            if (!response.ok) throw new Error('Failed to save conversation');
+            if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.message || 'Failed to save conversation');
+            }
             newConversation = await response.json();
             newConversation.createdAt = new Date(newConversation.createdAt);
-        } catch (error) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Failed to create new conversation.'});
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to create new conversation.'});
             setIsNewChatLoading(false);
             return;
         }
     } else {
+        const newId = nanoid();
         newConversation = {
           id: newId,
           userId: 'guest',
@@ -106,7 +107,7 @@ export function ChatLayout({ user }: { user: User | null }) {
                 const response = await fetch('/api/conversations', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ title: 'New Chat' }),
+                    body: JSON.stringify({ title: 'New Chat', messages: [] }),
                 });
                 if (!response.ok) throw new Error('Failed to create new conversation.');
                 const newConv = await response.json();
@@ -300,7 +301,7 @@ export function ChatLayout({ user }: { user: User | null }) {
           conversation={activeConversation}
           onSendMessage={handleSendMessage}
           onEditMessage={handleEditMessage}
-          isLoading={!user && conversations.length === 0 && isLoading}
+          isLoading={isLoading && conversations.length === 0}
         />
       </SidebarInset>
     </SidebarProvider>
