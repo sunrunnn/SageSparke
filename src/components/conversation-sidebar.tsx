@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Conversation } from "@/lib/types";
@@ -11,21 +12,21 @@ import {
   SidebarContent,
   SidebarTrigger,
   SidebarInput,
-  SidebarGroup,
 } from "@/components/ui/sidebar";
 import { Logo } from "./logo";
 import { Button } from "./ui/button";
-import { MessageSquare, Plus, Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
 import { useState } from "react";
-import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
+import { Skeleton } from "./ui/skeleton";
 
 interface ConversationSidebarProps {
-  conversations: Conversation[];
+  conversations: Omit<Conversation, 'messages'>[];
   activeConversationId: string | null;
   onConversationSelect: (id: string) => void;
   onNewConversation: () => void;
+  isLoading: boolean;
 }
 
 export function ConversationSidebar({
@@ -33,14 +34,14 @@ export function ConversationSidebar({
   activeConversationId,
   onConversationSelect,
   onNewConversation,
+  isLoading
 }: ConversationSidebarProps) {
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredConversations = conversations
     .filter((conv) =>
       conv.title.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    );
 
   return (
     <Sidebar>
@@ -62,7 +63,14 @@ export function ConversationSidebar({
       <SidebarContent>
         <ScrollArea className="h-full">
           <SidebarMenu>
-            {filteredConversations.map((conv) => (
+            {isLoading ? (
+              <div className="p-2 space-y-2">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </div>
+            ) : (
+              filteredConversations.map((conv) => (
               <SidebarMenuItem key={conv.id}>
                 <SidebarMenuButton
                   onClick={() => onConversationSelect(conv.id)}
@@ -71,11 +79,11 @@ export function ConversationSidebar({
                 >
                   <span className="w-full truncate">{conv.title}</span>
                    <span className="text-xs text-muted-foreground">
-                    {formatDistanceToNow(conv.createdAt, { addSuffix: true })}
+                    {conv.createdAt ? formatDistanceToNow(conv.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
                   </span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-            ))}
+            )))}
           </SidebarMenu>
         </ScrollArea>
       </SidebarContent>
