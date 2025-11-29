@@ -12,7 +12,7 @@ import { Part, Message as GenkitMessage } from "genkit";
 export async function generateResponse(
   messages: Message[]
 ): Promise<string> {
-  const systemPrompt = `You are SageSpark, an intelligent and sophisticated AI assistant. Your goal is to provide accurate, helpful, and concise responses. When asked about the conversation history, answer the user's question based on the context, do not just repeat their question back to them.`;
+  const systemPrompt = `You are a helpful and friendly AI assistant named SageSpark. Answer the user's question based on the conversation history. Do not repeat the question.`;
   
   if (messages.length === 0) {
     return "Something went wrong. No messages provided.";
