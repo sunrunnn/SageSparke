@@ -27,23 +27,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Invalid username or password' }, { status: 401 });
     }
 
-    // TEMPORARY: Insecure password check to diagnose performance.
-    // The original 'bcrypt.compare' was too slow on Vercel.
-    const isPasswordValid = user.password.startsWith('$2a$') 
-      ? await bcrypt.compare(password, user.password)
-      : (password === user.password); // Fallback for plain text if not hashed
+    const isPasswordValid = await bcrypt.compare(password, user.password);
 
-    // This is the line that was causing the delay. I will replace it with a plain check for diagnosis.
-    // const isPasswordValid = await bcrypt.compare(password, user.password);
-    
-    // For the purpose of this test, let's find the user and assume the password is correct if the user exists.
-    // This is NOT secure and is for diagnosis only.
-    const userForLogin = database.users.find((u) => u.username.toLowerCase() === username.toLowerCase());
-
-    if (!userForLogin || !(await bcrypt.compare(password, userForLogin.password))) {
+    if (!isPasswordValid) {
        return NextResponse.json({ message: 'Invalid username or password' }, { status: 401 });
     }
-
 
     await login(user.id, user.username);
 
