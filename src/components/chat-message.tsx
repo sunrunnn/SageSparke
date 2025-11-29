@@ -22,10 +22,11 @@ import Image from "next/image";
 
 interface ChatMessageProps {
   message: Message;
+  isLastUserMessage: boolean;
   onEdit: (id: string, newContent: string) => void;
 }
 
-export function ChatMessage({ message, onEdit }: ChatMessageProps) {
+export function ChatMessage({ message, isLastUserMessage, onEdit }: ChatMessageProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(message.content);
   const [isImproving, setIsImproving] = useState(false);
@@ -36,7 +37,7 @@ export function ChatMessage({ message, onEdit }: ChatMessageProps) {
   const { toast } = useToast();
 
   const handleEditSubmit = () => {
-    if (editedContent.trim() !== message.content) {
+    if (editedContent.trim() && editedContent.trim() !== message.content) {
       onEdit(message.id, editedContent.trim());
     }
     setIsEditing(false);
@@ -74,9 +75,9 @@ export function ChatMessage({ message, onEdit }: ChatMessageProps) {
   const useImprovedPrompt = () => {
     if (improvement) {
       setEditedContent(improvement.improvedPrompt);
+      setIsEditing(false);
       onEdit(message.id, improvement.improvedPrompt);
       setImprovement(null);
-      setIsEditing(false);
     }
   };
 
@@ -121,11 +122,17 @@ export function ChatMessage({ message, onEdit }: ChatMessageProps) {
               value={editedContent}
               onChange={(e) => setEditedContent(e.target.value)}
               className="text-base"
-              rows={3}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleEditSubmit();
+                }
+              }}
+              rows={Math.max(3, editedContent.split('\n').length)}
             />
             <div className="flex gap-2">
               <Button size="sm" onClick={handleEditSubmit}>
-                Save
+                Save & Submit
               </Button>
               <Button
                 size="sm"
@@ -156,7 +163,7 @@ export function ChatMessage({ message, onEdit }: ChatMessageProps) {
           </div>
         )}
       </div>
-      {isUser && !isEditing && (
+      {isUser && !isEditing && isLastUserMessage && (
         <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
           <Button
             variant="ghost"

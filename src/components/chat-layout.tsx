@@ -199,7 +199,7 @@ export function ChatLayout({ user }: { user: User | null }) {
     
     // Generate AI response
     try {
-      const aiResponse = await generateResponse(prompt, imageUrl);
+      const aiResponse = await generateResponse(updatedMessages);
       const assistantMessage: Message = {
         id: nanoid(),
         role: 'assistant',
@@ -247,13 +247,12 @@ export function ChatLayout({ user }: { user: User | null }) {
     
     const originalMessage = originalConversation.messages[messageIndex];
 
-    // For simplicity, we trigger a new response. A more complex implementation
-    // could involve regenerating from the point of the edit.
-    const newMessages = originalConversation.messages.slice(0, messageIndex + 1);
-    newMessages[messageIndex] = { ...originalMessage, content: newContent };
-
-
-    const updatedConversation = { ...originalConversation, messages: newMessages };
+    // Create a new set of messages for regeneration
+    const messagesForRegeneration = originalConversation.messages.slice(0, messageIndex + 1);
+    messagesForRegeneration[messageIndex] = { ...originalMessage, content: newContent };
+    
+    // Update the UI optimistically with just the edited message
+    const updatedConversation = { ...originalConversation, messages: messagesForRegeneration };
 
     setConversations(prev => {
         const newConversations = [...prev];
@@ -261,8 +260,47 @@ export function ChatLayout({ user }: { user: User | null }) {
         return newConversations;
     });
 
-    await handleSendMessage(newContent, originalMessage.imageUrl);
+    // Add a loading message
+    const loadingMessage: Message = {
+        id: nanoid(),
+        role: 'assistant',
+        content: '',
+        isLoading: true,
+        timestamp: new Date(),
+    };
+
+    setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...c, messages: [...c.messages, loadingMessage] } : c));
+
+    try {
+        const aiResponse = await generateResponse(messagesForRegeneration);
+        const assistantMessage: Message = {
+            id: nanoid(),
+            role: 'assistant',
+            content: aiResponse,
+            timestamp: new Date(),
+        };
+
+        const finalMessages = [...messagesForRegeneration, assistantMessage];
+        const finalConversation = { ...updatedConversation, messages: finalMessages };
+
+        setConversations(prev => prev.map(c => c.id === activeConversationId ? finalConversation : c));
+
+        if (user) {
+            await fetch(`/api/conversations/${activeConversationId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ messages: finalMessages }),
+            });
+        } else {
+            guestConversationStore[activeConversationId].messages = finalMessages;
+        }
+
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to get response from AI.' });
+        setConversations(prev => prev.map(c => c.id === activeConversationId ? { ...c, messages: messagesForRegeneration } : c));
+    }
   };
+
 
   const activeConversation = conversations.find((c) => c.id === activeConversationId) || null;
 

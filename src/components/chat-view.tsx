@@ -48,6 +48,9 @@ export function ChatView({
     
     setInput('');
     setImageUrl(null);
+    if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+    }
     
     await onSendMessage(currentInput, currentImageUrl || undefined);
   };
@@ -71,14 +74,18 @@ export function ChatView({
         </div>
       );
     }
+    
+    const messages = conversation?.messages || [];
 
-    if (conversation && conversation.messages.length > 0) {
+    if (messages.length > 0) {
+      const lastUserMessageIndex = messages.map(m => m.role).lastIndexOf('user');
       return (
         <div className="p-4">
-          {conversation.messages.map((msg) => (
+          {messages.map((msg, index) => (
             <ChatMessage
               key={msg.id}
               message={msg}
+              isLastUserMessage={msg.role === 'user' && index === lastUserMessageIndex}
               onEdit={onEditMessage}
             />
           ))}
@@ -108,7 +115,12 @@ export function ChatView({
               variant="ghost"
               size="icon"
               className="absolute top-0 right-0 h-6 w-6 bg-black/50 hover:bg-black/75 text-white"
-              onClick={() => setImageUrl(null)}
+              onClick={() => {
+                setImageUrl(null);
+                if (fileInputRef.current) {
+                    fileInputRef.current.value = '';
+                }
+              }}
             >
               <X size={14}/>
             </Button>
@@ -128,7 +140,7 @@ export function ChatView({
                 }
               }}
               rows={1}
-              disabled={isLoading}
+              disabled={isLoading || (conversation?.messages.some(m => m.isLoading) ?? false)}
             />
             <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
                 <input
@@ -143,14 +155,14 @@ export function ChatView({
                     variant="ghost"
                     size="icon"
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={isLoading}
+                    disabled={isLoading || (conversation?.messages.some(m => m.isLoading) ?? false)}
                 >
                     <Paperclip size={20} />
                 </Button>
                 <Button
                   type="submit"
                   size="icon"
-                  disabled={(!input.trim() && !imageUrl) || isLoading}
+                  disabled={(!input.trim() && !imageUrl) || isLoading || (conversation?.messages.some(m => m.isLoading) ?? false)}
                 >
                   <SendHorizonal size={20} />
                 </Button>

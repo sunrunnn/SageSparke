@@ -6,23 +6,32 @@ import {
   type ImprovePromptInput,
 } from "@/ai/flows/improve-prompt";
 import { summarizeConversation } from "@/ai/flows/summarize-conversation";
-import { MediaPart, Part } from "genkit";
+import { Message } from "@/lib/types";
+import { Part } from "genkit";
 
-export async function generateResponse(prompt: string, imageUrl?: string): Promise<string> {
-  const systemPrompt = `You are SageSpark, an intelligent and sophisticated AI assistant. Your goal is to provide accurate, helpful, and concise responses. Respond to the following user prompt.`;
-  
-  const parts: Part[] = [{ text: systemPrompt }];
+export async function generateResponse(
+  messages: Message[]
+): Promise<string> {
+  const systemPrompt = `You are SageSpark, an intelligent and sophisticated AI assistant. Your goal is to provide accurate, helpful, and concise responses.`;
 
-  if (imageUrl) {
-    parts.push({ media: { url: imageUrl } });
-  }
-
-  parts.push({ text: `User prompt: "${prompt}"\nYour response:` });
-
+  const history = messages.map((msg): Part => {
+    const part: Part = {
+        role: msg.role,
+        text: msg.content
+    };
+    if (msg.imageUrl) {
+        part.media = { url: msg.imageUrl };
+    }
+    return part;
+  });
 
   try {
     const llmResponse = await ai.generate({
-      prompt: parts,
+      prompt: [
+        { text: systemPrompt },
+        ...history,
+        { text: 'Your response:' },
+      ],
       config: {
         temperature: 0.5,
       },
