@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useAuth, useFirestore } from "@/firebase";
+import { useAuth, useFirestore, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc, writeBatch } from "firebase/firestore";
@@ -37,7 +37,6 @@ export default function SignupPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     const { username, email, password } = values;
 
-    // Check if username is taken
     const usernameRef = doc(firestore, 'usernames', username.toLowerCase());
     const usernameDoc = await getDoc(usernameRef);
 
@@ -51,28 +50,46 @@ export default function SignupPage() {
       const user = userCredential.user;
 
       const batch = writeBatch(firestore);
-
-      // Create user profile
-      const userRef = doc(firestore, 'users', user.uid);
-      batch.set(userRef, {
+      const userProfileData = {
         id: user.uid,
         username,
         email,
         createdAt: new Date(),
+      };
+      const userRef = doc(firestore, 'users', user.uid);
+      batch.set(userRef, userProfileData);
+
+      const usernameData = { userId: user.uid };
+      batch.set(usernameRef, usernameData);
+
+      // Do not await the commit, chain a .catch for error handling
+      batch.commit().catch(error => {
+        // Create and emit a detailed error for both operations in the batch
+        const userProfileError = new FirestorePermissionError({
+          path: userRef.path,
+          operation: 'create',
+          requestResourceData: userProfileData,
+        });
+        errorEmitter.emit('permission-error', userProfileError);
+
+        const usernameError = new FirestorePermissionError({
+            path: usernameRef.path,
+            operation: 'create',
+            requestResourceData: usernameData,
+        });
+        errorEmitter.emit('permission-error', usernameError);
+
+        // Also show a generic error to the user on the form
+        form.setError("root", { message: "A permission error occurred during signup." });
       });
-
-      // Reserve username
-      batch.set(usernameRef, { userId: user.uid });
-
-      await batch.commit();
 
       router.push('/');
     } catch (error: any) {
-      console.error(error);
+      // This will now primarily catch auth errors, not Firestore ones
       if (error.code === 'auth/email-already-in-use') {
         form.setError("email", { message: "This email is already in use." });
       } else {
-        form.setError("root", { message: error.message || "An unexpected error occurred." });
+        form.setError("root", { message: error.message || "An unexpected error occurred during signup." });
       }
     }
   }
