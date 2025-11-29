@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
         
         const newConversation: Conversation = {
             id: nanoid(),
-            userId: session.userId,
+            userId: session.userId, // Use the userId from the session
             title: title,
             messages: messages || [],
             createdAt: new Date(),
