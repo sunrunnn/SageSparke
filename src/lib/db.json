@@ -244,7 +244,7 @@
     {
       "id": "0NpK2Ybs5emJbHdi6M6xM",
       "userId": "cmqHXA7Krlr-UnO7AUUeF",
-      "title": "New Chat",
+      "title": "Hello! How can I assist you?",
       "messages": [
         {
           "id": "2_UltA1RzF_wvgQsD5eDo",
@@ -258,6 +258,45 @@
           "content": "Sorry, I encountered an error while generating a response. Please check your API key and try again. Error: 401 Incorrect API key provided: sk-or-v1*************************************************************1bd1. You can find your API key at https://platform.openai.com/account/api-keys.",
           "isLoading": false,
           "timestamp": "2025-11-30T06:06:31.676Z"
+        },
+        {
+          "id": "ReVB8YQMcG_sJukh_LroM",
+          "role": "user",
+          "content": "hi",
+          "timestamp": "2025-11-30T06:08:06.844Z"
+        },
+        {
+          "id": "7E-UELv929tAkNkkpVSGJ",
+          "role": "assistant",
+          "content": "Hello! How can I assist you today?",
+          "isLoading": false,
+          "timestamp": "2025-11-30T06:08:08.399Z"
+        },
+        {
+          "id": "wddcc_KPt7Zu1l0wq-Eq6",
+          "role": "user",
+          "content": "who made u",
+          "timestamp": "2025-11-30T06:08:12.421Z"
+        },
+        {
+          "id": "Fl_yB9PjxOVTqpEWK68f_",
+          "role": "assistant",
+          "content": "I was created by a team of developers and engineers at OpenAI. My purpose is to assist and provide helpful information to users like you. How can I help you today?",
+          "isLoading": false,
+          "timestamp": "2025-11-30T06:08:13.263Z"
+        },
+        {
+          "id": "8Bzoz0jNvS9u-87IR__hN",
+          "role": "user",
+          "content": "what model is this",
+          "timestamp": "2025-11-30T06:08:20.365Z"
+        },
+        {
+          "id": "Z-GhpucowBdt6WYyoWNzY",
+          "role": "assistant",
+          "content": "I am based on the GPT-3 (Generative Pre-trained Transformer 3) language model developed by OpenAI. It is one of the most advanced AI language models available, capable of generating human-like text and assisting with a wide range of tasks. Let me know if you have any specific questions or need assistance with anything!",
+          "isLoading": false,
+          "timestamp": "2025-11-30T06:08:21.584Z"
         }
       ],
       "createdAt": "2025-11-30T05:12:08.686Z"
