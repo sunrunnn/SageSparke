@@ -1,20 +1,8 @@
 'use server';
 
-import { genkit, configureGenkit } from '@genkit-ai/core';
-import { googleAI } from '@genkit-ai/google-genai';
 import { generate, type Part } from '@genkit-ai/ai';
 import type { Message } from '@/lib/types';
-
-// Configure Genkit directly in the actions file
-configureGenkit({
-  plugins: [
-    googleAI({
-      // apiKey: process.env.GEMINI_API_KEY, // Uncomment if you have a key
-    }),
-  ],
-  logLevel: 'debug',
-  enableTracingAndMetrics: true,
-});
+import '@/ai/genkit'; // Ensures Genkit is configured
 
 function toGenkitMessage(message: Message): { role: 'user' | 'model', content: Part[] } {
     const content: Part[] = [];
@@ -42,10 +30,6 @@ export async function generateResponse(messages: Message[]): Promise<string> {
             model: 'googleai/gemini-1.5-flash-latest',
             prompt,
             history,
-            config: {
-                // Add safety settings to be less restrictive if needed, e.g.:
-                // safetySettings: [{ category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' }]
-            }
         });
         return llmResponse.text;
     } catch (e: any) {
