@@ -1,8 +1,7 @@
 'use server';
 
-import { generate } from '@genkit-ai/ai';
-import { gemini15Flash } from '@genkit-ai/google-genai';
-import { Message } from '@/lib/types';
+import { generate, type Part } from '@genkit-ai/ai';
+import type { Message } from '@/lib/types';
 import { z } from 'zod';
 
 const MessageSchema = z.object({
@@ -16,8 +15,8 @@ const MessageSchema = z.object({
   })),
 });
 
-function toGenkitMessage(message: Message) {
-    const content = [];
+function toGenkitMessage(message: Message): { role: 'user' | 'model', content: Part[] } {
+    const content: Part[] = [];
     if (message.content) {
         content.push({ text: message.content });
     }
@@ -37,7 +36,7 @@ export async function generateResponse(messages: Message[]): Promise<string> {
 
     try {
         const llmResponse = await generate({
-            model: gemini15Flash,
+            model: 'googleai/gemini-1.5-flash-latest',
             prompt,
             history,
             config: {
@@ -58,7 +57,7 @@ export async function getConversationTitle(messages: Message[]): Promise<string>
 
     try {
         const llmResponse = await generate({
-            model: gemini15Flash,
+            model: 'googleai/gemini-1.5-flash-latest',
             prompt: `Based on the following conversation, create a short, descriptive title of 5 words or less. Do not include quotes in your response. \n\nConversation:\n${textMessages.map(m => `${m.role}: ${m.content}`).join('\n')}`
         });
 
