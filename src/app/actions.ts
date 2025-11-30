@@ -5,10 +5,13 @@ import type { Message } from "@/lib/types";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
+  baseURL: process.env.OPENAI_API_BASE, // Allow overriding for OpenAI-compatible services
 });
 
 // Function to format messages for the OpenAI API
 function formatMessagesForOpenAI(messages: Message[]): any[] {
+  // The API expects roles of 'user' and 'assistant'.
+  // The 'system' role is handled separately.
   return messages.map(msg => {
     const content: any[] = [{ type: 'text', text: msg.content }];
     if (msg.imageUrl) {
