@@ -36,7 +36,7 @@ export async function generateResponse(messages: Message[]): Promise<string> {
 
     try {
         const llmResponse = await openai.chat.completions.create({
-            model: 'x-ai/grok-4.1-fast:free',
+            model: 'openai/gpt-4o', // Using a standard, reliable model
             messages: [...history, toOpenAIMessage(lastMessage)],
         });
         return llmResponse.choices[0]?.message?.content || 'Sorry, I could not generate a response.';
@@ -51,7 +51,7 @@ export async function getConversationTitle(messages: Message[]): Promise<string>
 
     try {
         const llmResponse = await openai.chat.completions.create({
-            model: 'x-ai/grok-4.1-fast:free',
+            model: 'openai/gpt-4o', // Using a standard, reliable model
             messages: [
                 {
                     role: 'system',
