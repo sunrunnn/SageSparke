@@ -310,6 +310,19 @@
           "content": "Sorry, I encountered an error while generating a response. Please check your API key and try again. Error: 401 No cookie auth credentials found",
           "isLoading": false,
           "timestamp": "2025-11-30T06:09:09.592Z"
+        },
+        {
+          "id": "aE6LWytYSLMeyWr-HAyYi",
+          "role": "user",
+          "content": "hi",
+          "timestamp": "2025-11-30T06:12:44.532Z"
+        },
+        {
+          "id": "g6ctXxxCicGxNJV9EGdLU",
+          "role": "assistant",
+          "content": "Sorry, there was an error generating a response. Please check your API key setup. Error: registry.lookupValue is not a function",
+          "isLoading": false,
+          "timestamp": "2025-11-30T06:12:45.581Z"
         }
       ],
       "createdAt": "2025-11-30T05:12:08.686Z"
