@@ -1,58 +1,74 @@
 'use server';
 
-import { generate, type Part } from '@genkit-ai/ai';
+import OpenAI from 'openai';
 import type { Message } from '@/lib/types';
-import '@/ai/genkit'; // Ensures Genkit is configured
 
-function toGenkitMessage(message: Message): { role: 'user' | 'model', content: Part[] } {
-    const content: Part[] = [];
+// Initialize the OpenAI client with the API key and custom base URL from environment variables.
+// The custom base URL is necessary for using OpenAI-compatible services like OpenRouter.
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  baseURL: process.env.OPENAI_API_BASE, 
+});
+
+// This function converts the application's message format to the format expected by the OpenAI API.
+function toOpenAIMessage(message: Message): OpenAI.Chat.Completions.ChatCompletionMessageParam {
+    let content: (OpenAI.Chat.Completions.ChatCompletionContentPartText | OpenAI.Chat.Completions.ChatCompletionContentPartImage)[] = [];
+    
     if (message.content) {
-        content.push({ text: message.content });
+        content.push({ type: 'text', text: message.content });
     }
+
     if (message.imageUrl) {
-        // The Gemini API expects a data URI for images.
-        // Ensure the imageUrl is in the format: 'data:image/png;base64,...'
-        content.push({ media: { contentType: 'image/png', url: message.imageUrl } });
+        // The vision model expects the image URL in a specific format.
+        content.push({ type: 'image_url', image_url: { url: message.imageUrl } });
     }
+
     return {
-        role: message.role === 'assistant' ? 'model' : 'user',
-        content,
+        role: message.role === 'assistant' ? 'assistant' : 'user',
+        content: content,
     };
 }
 
 export async function generateResponse(messages: Message[]): Promise<string> {
-    const history = messages.slice(0, -1).map(toGenkitMessage);
+    // The history is all messages except the last one.
+    const history = messages.slice(0, -1).map(toOpenAIMessage);
     const lastMessage = messages[messages.length - 1];
-    const prompt = toGenkitMessage(lastMessage).content;
 
     try {
-        const llmResponse = await generate({
+        const llmResponse = await openai.chat.completions.create({
             model: 'x-ai/grok-4.1-fast:free',
-            prompt,
-            history,
+            messages: [...history, toOpenAIMessage(lastMessage)],
         });
-        return llmResponse.text;
+        return llmResponse.choices[0]?.message?.content || 'Sorry, I could not generate a response.';
     } catch (e: any) {
-        console.error('Genkit Error:', e);
+        console.error('OpenAI API Error:', e);
         return `Sorry, there was an error generating a response. Please check your API key setup. Error: ${e.message}`;
     }
 }
 
-
 export async function getConversationTitle(messages: Message[]): Promise<string> {
-    const textMessages = messages.map(msg => ({ role: msg.role, content: msg.content }));
+    const textMessages = messages.filter(msg => msg.content).map(msg => `${msg.role}: ${msg.content}`).join('\n');
 
     try {
-        const llmResponse = await generate({
+        const llmResponse = await openai.chat.completions.create({
             model: 'x-ai/grok-4.1-fast:free',
-            prompt: `Based on the following conversation, create a short, descriptive title of 5 words or less. Do not include quotes in your response. \n\nConversation:\n${textMessages.map(m => `${m.role}: ${m.content}`).join('\n')}`
+            messages: [
+                {
+                    role: 'system',
+                    content: `Based on the following conversation, create a short, descriptive title of 5 words or less. Do not include quotes in your response.`
+                },
+                {
+                    role: 'user',
+                    content: textMessages
+                }
+            ]
         });
 
-        const text = llmResponse.text.replace(/"/g, "") || "New Chat";
-        return text;
+        const title = llmResponse.choices[0]?.message?.content?.replace(/"/g, "") || "New Chat";
+        return title;
 
     } catch (error) {
-        console.error("Failed to generate title with Genkit:", error);
+        console.error("Failed to generate title with OpenAI:", error);
         return "New Chat";
     }
 }
