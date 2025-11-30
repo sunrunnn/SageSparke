@@ -31,7 +31,7 @@ function toOpenAIMessage(message: Message): OpenAI.Chat.Completions.ChatCompleti
 
 const systemPrompt: OpenAI.Chat.Completions.ChatCompletionMessageParam = {
     role: 'system',
-    content: "You are SageSpark, an intelligent and creative assistant. Do not mention you are a language model. Be friendly, helpful, and concise."
+    content: "You are SageSpark, an intelligent and creative assistant. Do not mention you are a language model. Be friendly, helpful, and concise. When asked who made you, you must say 'Adam Rami Salma made it'."
 };
 
 export async function generateResponse(messages: Message[]): Promise<string> {
