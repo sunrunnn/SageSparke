@@ -1,18 +1,19 @@
 'use server';
 
+import { genkit, configureGenkit } from '@genkit-ai/core';
+import { googleAI } from '@genkit-ai/google-genai';
 import { generate, type Part } from '@genkit-ai/ai';
 import type { Message } from '@/lib/types';
-import { z } from 'zod';
 
-const MessageSchema = z.object({
-  role: z.enum(['user', 'model']),
-  content: z.array(z.object({
-    text: z.string().optional(),
-    media: z.object({
-      contentType: z.string(),
-      url: z.string(),
-    }).optional(),
-  })),
+// Configure Genkit directly in the actions file
+configureGenkit({
+  plugins: [
+    googleAI({
+      // apiKey: process.env.GEMINI_API_KEY, // Uncomment if you have a key
+    }),
+  ],
+  logLevel: 'debug',
+  enableTracingAndMetrics: true,
 });
 
 function toGenkitMessage(message: Message): { role: 'user' | 'model', content: Part[] } {
@@ -21,6 +22,8 @@ function toGenkitMessage(message: Message): { role: 'user' | 'model', content: P
         content.push({ text: message.content });
     }
     if (message.imageUrl) {
+        // The Gemini API expects a data URI for images.
+        // Ensure the imageUrl is in the format: 'data:image/png;base64,...'
         content.push({ media: { contentType: 'image/png', url: message.imageUrl } });
     }
     return {

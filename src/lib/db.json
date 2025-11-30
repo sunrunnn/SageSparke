@@ -323,6 +323,19 @@
           "content": "Sorry, there was an error generating a response. Please check your API key setup. Error: registry.lookupValue is not a function",
           "isLoading": false,
           "timestamp": "2025-11-30T06:12:45.581Z"
+        },
+        {
+          "id": "Euvy1g_Ksdwb3qZWeaI6O",
+          "role": "user",
+          "content": "hi",
+          "timestamp": "2025-11-30T06:13:16.853Z"
+        },
+        {
+          "id": "WRNO6zoadh4CvaPk0JxSP",
+          "role": "assistant",
+          "content": "Sorry, there was an error generating a response. Please check your API key setup. Error: registry.lookupValue is not a function",
+          "isLoading": false,
+          "timestamp": "2025-11-30T06:13:17.709Z"
         }
       ],
       "createdAt": "2025-11-30T05:12:08.686Z"
