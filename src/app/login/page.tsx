@@ -109,18 +109,23 @@ export default function LoginPage() {
               </Button>
             </form>
           </Form>
-          <p className="mt-4 text-center text-sm text-muted-foreground">
-            Don&apos;t have an account?{' '}
-            <Link href="/signup" className="font-semibold text-primary hover:underline">
-              Sign up
-            </Link>
-          </p>
-           <p className="mt-2 text-center text-sm text-muted-foreground">
-            or{' '}
-            <Link href="/" className="font-semibold text-primary hover:underline">
-              Continue as Guest
-            </Link>
-          </p>
+          <div className="mt-4 space-y-2 text-center text-sm text-muted-foreground">
+            <p>
+              Don&apos;t have an account?{' '}
+              <Link href="/signup" className="font-semibold text-primary hover:underline">
+                Sign up
+              </Link>
+            </p>
+            <p>
+              or{' '}
+              <Link href="/" className="font-semibold text-primary hoverunderline">
+                Continue as Guest
+              </Link>
+            </p>
+            <Button asChild variant="link">
+                <Link href="/puter">Puter.js Demo</Link>
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </main>
