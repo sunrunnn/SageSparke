@@ -297,6 +297,19 @@
           "content": "I am based on the GPT-3 (Generative Pre-trained Transformer 3) language model developed by OpenAI. It is one of the most advanced AI language models available, capable of generating human-like text and assisting with a wide range of tasks. Let me know if you have any specific questions or need assistance with anything!",
           "isLoading": false,
           "timestamp": "2025-11-30T06:08:21.584Z"
+        },
+        {
+          "id": "PZojsaBN57ufdQXzTl2wQ",
+          "role": "user",
+          "content": "hi",
+          "timestamp": "2025-11-30T06:09:08.104Z"
+        },
+        {
+          "id": "WAb8IQtw1iOPQVELee9vB",
+          "role": "assistant",
+          "content": "Sorry, I encountered an error while generating a response. Please check your API key and try again. Error: 401 No cookie auth credentials found",
+          "isLoading": false,
+          "timestamp": "2025-11-30T06:09:09.592Z"
         }
       ],
       "createdAt": "2025-11-30T05:12:08.686Z"
