@@ -16,7 +16,6 @@ import {
   DialogFooter,
 } from "./ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { getPromptImprovement } from "@/app/actions";
 import { Skeleton } from "./ui/skeleton";
 import Image from "next/image";
 
@@ -29,11 +28,6 @@ interface ChatMessageProps {
 export function ChatMessage({ message, isLastUserMessage, onEdit }: ChatMessageProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(message.content);
-  const [isImproving, setIsImproving] = useState(false);
-  const [improvement, setImprovement] = useState<{
-    improvedPrompt: string;
-    explanation: string;
-  } | null>(null);
   const { toast } = useToast();
 
   const handleEditSubmit = () => {
@@ -44,41 +38,10 @@ export function ChatMessage({ message, isLastUserMessage, onEdit }: ChatMessageP
   };
 
   const handleImprovePrompt = async () => {
-    setIsImproving(true);
-    try {
-      const result = await getPromptImprovement({
-        originalPrompt: message.content,
-        generatedResponse: "", // Not needed for this simple improvement
-        feedback: "Suggest a better version of this prompt.",
-      });
-      if (result.improvedPrompt) {
-        setImprovement(result);
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Improvement Failed",
-          description:
-            result.explanation || "Could not improve the prompt at this time.",
-        });
-      }
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "An error occurred while improving the prompt.",
-      });
-    } finally {
-      setIsImproving(false);
-    }
-  };
-
-  const useImprovedPrompt = () => {
-    if (improvement) {
-      setEditedContent(improvement.improvedPrompt);
-      setIsEditing(false);
-      onEdit(message.id, improvement.improvedPrompt);
-      setImprovement(null);
-    }
+    toast({
+        title: "Coming Soon!",
+        description: "The prompt improvement feature is not yet implemented.",
+    });
   };
 
   const isUser = message.role === "user";
@@ -145,10 +108,9 @@ export function ChatMessage({ message, isLastUserMessage, onEdit }: ChatMessageP
                 size="sm"
                 variant="ghost"
                 onClick={handleImprovePrompt}
-                disabled={isImproving}
               >
                 <Sparkles className="mr-2 h-4 w-4" />
-                {isImproving ? "Improving..." : "Improve with AI"}
+                Improve with AI
               </Button>
             </div>
           </div>
@@ -175,32 +137,6 @@ export function ChatMessage({ message, isLastUserMessage, onEdit }: ChatMessageP
           </Button>
         </div>
       )}
-
-      <Dialog open={!!improvement} onOpenChange={() => setImprovement(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Prompt Improvement Suggestion</DialogTitle>
-            <DialogDescription>
-              {improvement?.explanation}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="my-4 rounded-md border bg-muted p-4">
-            <p className="font-semibold">Suggested Prompt:</p>
-            <p className="text-muted-foreground">
-              {improvement?.improvedPrompt}
-            </p>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setImprovement(null)}
-            >
-              Cancel
-            </Button>
-            <Button onClick={useImprovedPrompt}>Use this prompt</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

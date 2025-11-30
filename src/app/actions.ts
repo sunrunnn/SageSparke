@@ -1,32 +1,77 @@
 'use server';
-import { ai } from "@/ai/genkit";
-import { Message } from "@/lib/types";
-import {
-  improvePrompt,
-  ImprovePromptInput,
-  ImprovePromptOutput,
-} from "@/ai/flows/improve-prompt";
+
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
+import type { Message } from "@/lib/types";
+import type { Part } from "@google/generative-ai";
+
+const MODEL_NAME = "gemini-1.5-flash";
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+
+const safetySettings = [
+  {
+    category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+  },
+];
+
+async function fileToGenerativePart(dataUri: string): Promise<Part> {
+  const match = dataUri.match(/^data:(.+);base64,(.+)$/);
+  if (!match) {
+    throw new Error('Invalid data URI');
+  }
+  const [_, mimeType, base64] = match;
+  return {
+    inlineData: {
+      mimeType,
+      data: base64,
+    },
+  };
+}
 
 export async function generateResponse(messages: Message[]): Promise<string> {
-  const systemPrompt = `You are SageSpark, an intelligent and sophisticated AI assistant. Your goal is to provide accurate, helpful, and concise responses. The user is providing you with the entire conversation history in a single block. Use this history to answer their latest message.`;
+    
+  const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 
-  const conversationAsString = messages
-    .map((msg) => {
-      const role = msg.role === "user" ? "User" : "Assistant";
-      return `${role}: ${msg.content}`;
+  const history = await Promise.all(
+    messages.slice(0, -1).map(async (msg) => {
+      const parts = [{ text: msg.content }];
+      if (msg.imageUrl) {
+        parts.push(await fileToGenerativePart(msg.imageUrl));
+      }
+      return {
+        role: msg.role === 'assistant' ? 'model' : 'user',
+        parts,
+      };
     })
-    .join("\n");
+  );
+
+  const lastMessage = messages[messages.length - 1];
+  const lastMessageParts = [{ text: lastMessage.content }];
+    if (lastMessage.imageUrl) {
+        lastMessageParts.push(await fileToGenerativePart(lastMessage.imageUrl));
+    }
 
   try {
-    const llmResponse = await ai.generate({
-      system: systemPrompt,
-      prompt: conversationAsString,
-      config: {
-        temperature: 0.5,
-      },
+    const chat = model.startChat({
+        history,
+        safetySettings,
     });
-
-    return llmResponse.text;
+    const result = await chat.sendMessage(lastMessageParts);
+    const text = result.response.text();
+    return text;
   } catch (error) {
     console.error("Failed to generate response:", error);
     const errorMessage =
@@ -36,31 +81,26 @@ export async function generateResponse(messages: Message[]): Promise<string> {
 }
 
 export async function getConversationTitle(messages: Message[]): Promise<string> {
-  const systemPrompt = `Based on the following conversation, create a short, descriptive title of 5 words or less. Do not include quotes in your response.`;
+  const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 
+  const systemPrompt = `Based on the following conversation, create a short, descriptive title of 5 words or less. Do not include quotes in your response.`;
+  
   const conversationAsString = messages
     .map((msg) => `${msg.role}: ${msg.content}`)
     .join("\n");
+  
+  const prompt = `${systemPrompt}\n\n${conversationAsString}`;
 
   try {
-    const llmResponse = await ai.generate({
-      system: systemPrompt,
-      prompt: conversationAsString,
-      config: {
-        temperature: 0.2,
-      },
-    });
-
-    return llmResponse.text.replace(/"/g, "");
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    return text.replace(/"/g, "");
   } catch (error) {
     console.error("Failed to generate title:", error);
     return "New Chat";
   }
 }
 
-// This function was also deleted by mistake and is now restored.
-export async function getPromptImprovement(
-  input: ImprovePromptInput
-): Promise<ImprovePromptOutput> {
-  return improvePrompt(input);
-}
+// We no longer need the getPromptImprovement function as it was tied to the old Genkit implementation
+// and not used in the core chat logic.
+// export async function getPromptImprovement(...)

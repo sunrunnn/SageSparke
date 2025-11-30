@@ -18,5 +18,5 @@ export type Conversation = {
 export type User = {
     id: string;
     username: string;
-    password?: string;
+    image?: string;
 };
