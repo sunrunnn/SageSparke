@@ -38,6 +38,7 @@ export async function generateResponse(messages: Message[]): Promise<string> {
         const llmResponse = await openai.chat.completions.create({
             model: 'openai/gpt-4o', // Using a standard, reliable model
             messages: [...history, toOpenAIMessage(lastMessage)],
+            max_tokens: 2048, // Limit response size to stay within free tier
         });
         return llmResponse.choices[0]?.message?.content || 'Sorry, I could not generate a response.';
     } catch (e: any) {
@@ -61,7 +62,8 @@ export async function getConversationTitle(messages: Message[]): Promise<string>
                     role: 'user',
                     content: textMessages
                 }
-            ]
+            ],
+            max_tokens: 50, // Limit for title generation
         });
 
         const title = llmResponse.choices[0]?.message?.content?.replace(/"/g, "") || "New Chat";
