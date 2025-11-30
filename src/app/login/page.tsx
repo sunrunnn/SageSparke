@@ -122,9 +122,6 @@ export default function LoginPage() {
                 Continue as Guest
               </Link>
             </p>
-            <Button asChild variant="link">
-                <Link href="/puter">Puter.js Demo</Link>
-            </Button>
           </div>
         </CardContent>
       </Card>
