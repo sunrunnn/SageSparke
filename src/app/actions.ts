@@ -2,7 +2,7 @@
 
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 import type { Message } from "@/lib/types";
-import type { Part } from "@google/generative-ai";
+import type { Part, Content } from "@google/generative-ai";
 
 const MODEL_NAME = "gemini-1.5-flash";
 
@@ -45,9 +45,9 @@ export async function generateResponse(messages: Message[]): Promise<string> {
     
   const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 
-  const history = await Promise.all(
+  const history: Content[] = await Promise.all(
     messages.slice(0, -1).map(async (msg) => {
-      const parts = [{ text: msg.content }];
+      const parts: Part[] = [{ text: msg.content }];
       if (msg.imageUrl) {
         parts.push(await fileToGenerativePart(msg.imageUrl));
       }
@@ -59,7 +59,7 @@ export async function generateResponse(messages: Message[]): Promise<string> {
   );
 
   const lastMessage = messages[messages.length - 1];
-  const lastMessageParts = [{ text: lastMessage.content }];
+  const lastMessageParts: Part[] = [{ text: lastMessage.content }];
     if (lastMessage.imageUrl) {
         lastMessageParts.push(await fileToGenerativePart(lastMessage.imageUrl));
     }
@@ -100,7 +100,3 @@ export async function getConversationTitle(messages: Message[]): Promise<string>
     return "New Chat";
   }
 }
-
-// We no longer need the getPromptImprovement function as it was tied to the old Genkit implementation
-// and not used in the core chat logic.
-// export async function getPromptImprovement(...)
