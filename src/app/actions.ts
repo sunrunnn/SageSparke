@@ -27,7 +27,7 @@ export async function generateResponse(messages: Message[]): Promise<string> {
 
     try {
         const llmResponse = await generate({
-            model: 'googleai/gemini-1.5-flash-latest',
+            model: 'x-ai/grok-4.1-fast:free',
             prompt,
             history,
         });
@@ -44,7 +44,7 @@ export async function getConversationTitle(messages: Message[]): Promise<string>
 
     try {
         const llmResponse = await generate({
-            model: 'googleai/gemini-1.5-flash-latest',
+            model: 'x-ai/grok-4.1-fast:free',
             prompt: `Based on the following conversation, create a short, descriptive title of 5 words or less. Do not include quotes in your response. \n\nConversation:\n${textMessages.map(m => `${m.role}: ${m.content}`).join('\n')}`
         });
 
