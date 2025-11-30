@@ -29,16 +29,19 @@ function toOpenAIMessage(message: Message): OpenAI.Chat.Completions.ChatCompleti
     };
 }
 
+const systemPrompt: OpenAI.Chat.Completions.ChatCompletionMessageParam = {
+    role: 'system',
+    content: "You are SageSpark, an intelligent and creative assistant. Do not mention you are a language model. Be friendly, helpful, and concise."
+};
+
 export async function generateResponse(messages: Message[]): Promise<string> {
-    // The history is all messages except the last one.
-    const history = messages.slice(0, -1).map(toOpenAIMessage);
-    const lastMessage = messages[messages.length - 1];
+    const history = messages.map(toOpenAIMessage);
 
     try {
         const llmResponse = await openai.chat.completions.create({
-            model: 'openai/gpt-4o', // Using a standard, reliable model
-            messages: [...history, toOpenAIMessage(lastMessage)],
-            max_tokens: 2048, // Limit response size to stay within free tier
+            model: 'openai/gpt-4o',
+            messages: [systemPrompt, ...history],
+            max_tokens: 2048,
         });
         return llmResponse.choices[0]?.message?.content || 'Sorry, I could not generate a response.';
     } catch (e: any) {
@@ -52,7 +55,7 @@ export async function getConversationTitle(messages: Message[]): Promise<string>
 
     try {
         const llmResponse = await openai.chat.completions.create({
-            model: 'openai/gpt-4o', // Using a standard, reliable model
+            model: 'openai/gpt-4o',
             messages: [
                 {
                     role: 'system',
@@ -63,7 +66,7 @@ export async function getConversationTitle(messages: Message[]): Promise<string>
                     content: textMessages
                 }
             ],
-            max_tokens: 50, // Limit for title generation
+            max_tokens: 50,
         });
 
         const title = llmResponse.choices[0]?.message?.content?.replace(/"/g, "") || "New Chat";
