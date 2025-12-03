@@ -4,16 +4,15 @@ import type { Conversation } from '@/lib/types';
 import { ScrollArea } from './ui/scroll-area';
 import { ChatMessage } from './chat-message';
 import { Button } from './ui/button';
-import { Paperclip, SendHorizonal, X, Plus } from 'lucide-react';
+import { SendHorizonal, Plus } from 'lucide-react';
 import { Textarea } from './ui/textarea';
 import { useState, useRef, useEffect } from 'react';
 import { Logo } from './logo';
 import { Skeleton } from './ui/skeleton';
-import Image from 'next/image';
 
 interface ChatViewProps {
   conversation: Conversation | undefined;
-  onSendMessage: (content: string, imageUrl?: string) => Promise<void>;
+  onSendMessage: (content: string) => Promise<void>;
   onEditMessage: (conversationId: string, messageId: string, newContent: string) => void;
   onNewConversation: () => void;
   isLoading: boolean;
@@ -27,37 +26,19 @@ export function ChatView({
   isLoading
 }: ChatViewProps) {
   const [input, setInput] = useState('');
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [isSending, setIsSending] = useState(false);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((!input.trim() && !imageUrl) || isSending) return;
+    if (!input.trim() || isSending) return;
 
     setIsSending(true);
     const currentInput = input.trim();
-    const currentImageUrl = imageUrl;
     
     setInput('');
-    setImageUrl(null);
-    if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-    }
     
-    await onSendMessage(currentInput, currentImageUrl || undefined);
+    await onSendMessage(currentInput);
     setIsSending(false);
   };
   
@@ -117,29 +98,11 @@ export function ChatView({
         {renderContent()}
       </ScrollArea>
       <div className="p-4 border-t bg-background">
-        {imageUrl && (
-          <div className="relative mb-2 w-24 h-24 rounded-md overflow-hidden border">
-            <Image src={imageUrl} alt="Upload preview" layout="fill" objectFit="cover" />
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute top-0 right-0 h-6 w-6 bg-black/50 hover:bg-black/75 text-white"
-              onClick={() => {
-                setImageUrl(null);
-                if (fileInputRef.current) {
-                    fileInputRef.current.value = '';
-                }
-              }}
-            >
-              <X size={14}/>
-            </Button>
-          </div>
-        )}
         <form onSubmit={handleSubmit}>
           <div className="relative">
              <Textarea
-              placeholder="Type your message here or upload an image..."
-              className="pr-24 text-base resize-none border-0 shadow-none focus-visible:ring-0"
+              placeholder="Type your message here..."
+              className="pr-14 text-base resize-none border-0 shadow-none focus-visible:ring-0"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
@@ -152,26 +115,10 @@ export function ChatView({
               disabled={isSending || conversation?.messages.some(m => m.isLoading) || isLoading}
             />
             <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                <input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                />
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isSending || conversation?.messages.some(m => m.isLoading) || isLoading}
-                >
-                    <Paperclip size={20} />
-                </Button>
                 <Button
                   type="submit"
                   size="icon"
-                  disabled={(!input.trim() && !imageUrl) || isSending || conversation?.messages.some(m => m.isLoading) || isLoading}
+                  disabled={!input.trim() || isSending || conversation?.messages.some(m => m.isLoading) || isLoading}
                 >
                   <SendHorizonal size={20} />
                 </Button>

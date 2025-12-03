@@ -116,11 +116,6 @@ export function ChatMessage({ message, isLastUserMessage, onEdit }: ChatMessageP
           </div>
         ) : (
           <div className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-wrap">
-            {message.imageUrl && (
-              <div className="relative w-48 h-48 mb-2 rounded-md overflow-hidden border">
-                <Image src={message.imageUrl} alt="User upload" layout="fill" objectFit="cover" />
-              </div>
-            )}
             {message.content}
           </div>
         )}

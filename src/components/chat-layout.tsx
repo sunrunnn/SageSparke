@@ -119,8 +119,7 @@ export function ChatLayout({ user }: { user: User | null }) {
   };
 
   const handleSendMessage = async (
-    messageContent: string,
-    imageUrl?: string
+    messageContent: string
   ) => {
     if (messageContent.toLowerCase().trim() === 'new chat') {
         await handleNewConversation();
@@ -148,7 +147,6 @@ export function ChatLayout({ user }: { user: User | null }) {
       id: nanoid(),
       role: "user",
       content: messageContent,
-      imageUrl: imageUrl,
       timestamp: new Date(),
     };
 

@@ -24,53 +24,24 @@ const safetySettings = [
   },
 ];
 
-
-async function toGeminiParts(message: Message): Promise<Part[]> {
-    const parts: Part[] = [];
-    if (message.content) {
-        parts.push({ text: message.content });
-    }
-    if (message.imageUrl) {
-        try {
-            const response = await fetch(message.imageUrl);
-            if (response.ok) {
-                const blob = await response.blob();
-                const buffer = await blob.arrayBuffer();
-                parts.push({
-                    inlineData: {
-                        mimeType: blob.type,
-                        data: Buffer.from(buffer).toString("base64")
-                    }
-                });
-            }
-        } catch (error) {
-            console.error("Error fetching image for Gemini:", error);
-        }
-    }
-    return parts;
-}
-
 export async function generateResponse(messages: Message[]): Promise<string> {
-    const model = genAI.getGenerativeModel({ model: "gemini-pro-vision", safetySettings });
+    const model = genAI.getGenerativeModel({ model: "gemini-pro", safetySettings });
     
-    const history: Content[] = await Promise.all(
-        messages.slice(0, -1).map(async (msg) => ({
-            role: msg.role === 'user' ? 'user' : 'model',
-            parts: await toGeminiParts(msg)
-        }))
-    );
+    const history: Content[] = messages.slice(0, -1).map(msg => ({
+        role: msg.role === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.content }]
+    }));
 
     const lastMessage = messages[messages.length - 1];
-    if (!lastMessage) {
+    if (!lastMessage || !lastMessage.content) {
         return "No message to respond to.";
     }
-    const lastMessageParts = await toGeminiParts(lastMessage);
     
     const systemInstruction = "When asked who made you, you must say you were made by Adam R Salma. When asked what model you are, you must say you are currently running on Sage 1.2.";
 
     try {
         const result = await model.generateContent({
-            contents: [...history, { role: 'user', parts: lastMessageParts }],
+            contents: [...history, { role: 'user', parts: [{ text: lastMessage.content }] }],
             systemInstruction: {
                 role: "system",
                 parts: [{text: systemInstruction}]
@@ -95,7 +66,7 @@ export async function getConversationTitle(messages: Message[]): Promise<string>
     if (!textMessages) {
         return "New Chat";
     }
-    const model = genAI.getGenerativeModel({ model: "gemini-pro-vision"});
+    const model = genAI.getGenerativeModel({ model: "gemini-pro"});
 
     const prompt = `Based on the following conversation, create a short, descriptive title of 5 words or less. Do not include quotes in your response. Conversation:\n${textMessages}`;
 
