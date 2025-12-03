@@ -31,7 +31,7 @@ async function toGeminiParts(message: Message): Promise<Part[]> {
 }
 
 export async function generateResponse(messages: Message[]): Promise<string> {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
     
     const history: Content[] = await Promise.all(
         messages.slice(0, -1).map(async (msg) => ({
@@ -69,7 +69,7 @@ export async function getConversationTitle(messages: Message[]): Promise<string>
     if (!textMessages) {
         return "New Chat";
     }
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash"});
+    const model = genAI.getGenerativeModel({ model: "gemini-pro"});
 
     const prompt = `Based on the following conversation, create a short, descriptive title of 5 words or less. Do not include quotes in your response. Conversation:\n${textMessages}`;
 
