@@ -4,7 +4,7 @@ import type { Conversation } from '@/lib/types';
 import { ScrollArea } from './ui/scroll-area';
 import { ChatMessage } from './chat-message';
 import { Button } from './ui/button';
-import { Paperclip, SendHorizonal, X } from 'lucide-react';
+import { Paperclip, SendHorizonal, X, Plus } from 'lucide-react';
 import { Textarea } from './ui/textarea';
 import { useState, useRef, useEffect } from 'react';
 import { Logo } from './logo';
@@ -15,6 +15,7 @@ interface ChatViewProps {
   conversation: Conversation | undefined;
   onSendMessage: (content: string, imageUrl?: string) => Promise<void>;
   onEditMessage: (conversationId: string, messageId: string, newContent: string) => void;
+  onNewConversation: () => void;
   isLoading: boolean;
 }
 
@@ -22,12 +23,14 @@ export function ChatView({
   conversation,
   onSendMessage,
   onEditMessage,
+  onNewConversation,
   isLoading
 }: ChatViewProps) {
   const [input, setInput] = useState('');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const [isSending, setIsSending] = useState(false);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -42,7 +45,9 @@ export function ChatView({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() && !imageUrl) return;
+    if ((!input.trim() && !imageUrl) || isSending) return;
+
+    setIsSending(true);
     const currentInput = input.trim();
     const currentImageUrl = imageUrl;
     
@@ -53,6 +58,7 @@ export function ChatView({
     }
     
     await onSendMessage(currentInput, currentImageUrl || undefined);
+    setIsSending(false);
   };
   
   useEffect(() => {
@@ -62,7 +68,7 @@ export function ChatView({
             viewport.scrollTop = viewport.scrollHeight;
         }
     }
-  }, [conversation?.messages, isLoading]);
+  }, [conversation?.messages, isLoading, isSending]);
 
   const renderContent = () => {
     if (isLoading && !conversation) {
@@ -98,6 +104,9 @@ export function ChatView({
         <Logo className="mb-4" />
         <h2 className="text-2xl font-semibold text-foreground">Welcome to SageSpark</h2>
         <p className="text-muted-foreground">Start a new conversation by typing your prompt below.</p>
+        <Button onClick={onNewConversation} variant="ghost" className="mt-4">
+          <Plus className="mr-2 h-4 w-4" /> New Chat
+        </Button>
       </div>
     );
   };
@@ -140,7 +149,7 @@ export function ChatView({
                 }
               }}
               rows={1}
-              disabled={isLoading || (conversation?.messages.some(m => m.isLoading) ?? false)}
+              disabled={isSending || conversation?.messages.some(m => m.isLoading) || isLoading}
             />
             <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
                 <input
@@ -155,14 +164,14 @@ export function ChatView({
                     variant="ghost"
                     size="icon"
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={isLoading || (conversation?.messages.some(m => m.isLoading) ?? false)}
+                    disabled={isSending || conversation?.messages.some(m => m.isLoading) || isLoading}
                 >
                     <Paperclip size={20} />
                 </Button>
                 <Button
                   type="submit"
                   size="icon"
-                  disabled={(!input.trim() && !imageUrl) || isLoading || (conversation?.messages.some(m => m.isLoading) ?? false)}
+                  disabled={(!input.trim() && !imageUrl) || isSending || conversation?.messages.some(m => m.isLoading) || isLoading}
                 >
                   <SendHorizonal size={20} />
                 </Button>

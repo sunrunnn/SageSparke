@@ -38,3 +38,37 @@ export async function PUT(req: NextRequest, { params }: { params: { conversation
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest, { params }: { params: { conversationId: string } }) {
+  const session = await getSession();
+  if (!session?.userId) {
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { conversationId } = params;
+  
+  try {
+    const database = await db.read();
+    
+    const conversationIndex = database.conversations.findIndex(c => c.id === conversationId);
+
+    if (conversationIndex === -1) {
+      return NextResponse.json({ message: 'Conversation not found' }, { status: 404 });
+    }
+    
+    const originalConversation = database.conversations[conversationIndex];
+
+    if (originalConversation.userId !== session.userId) {
+        return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+    }
+
+    database.conversations.splice(conversationIndex, 1);
+
+    await db.write(database);
+    
+    return NextResponse.json({ message: 'Conversation deleted successfully' }, { status: 200 });
+  } catch (error) {
+    console.error(`Failed to delete conversation ${conversationId}:`, error);
+    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+  }
+}

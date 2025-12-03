@@ -16,17 +16,28 @@ import {
 } from "@/components/ui/sidebar";
 import { Logo } from "./logo";
 import { Button } from "./ui/button";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Trash2 } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { Skeleton } from "./ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ConversationSidebarProps {
   conversations: Omit<Conversation, 'messages'>[];
   activeConversationId: string | null;
   onConversationSelect: (id: string) => void;
   onNewConversation: () => void;
+  onDeleteConversation: (id: string) => void;
   isLoading: boolean;
   isNewChatLoading: boolean;
   userNav: React.ReactNode;
@@ -37,16 +48,25 @@ export function ConversationSidebar({
   activeConversationId,
   onConversationSelect,
   onNewConversation,
+  onDeleteConversation,
   isLoading,
   isNewChatLoading,
   userNav,
 }: ConversationSidebarProps) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const filteredConversations = conversations
     .filter((conv) =>
       conv.title.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+  const handleDeleteConfirm = () => {
+    if (deletingId) {
+        onDeleteConversation(deletingId);
+        setDeletingId(null);
+    }
+  }
 
   return (
     <SidebarProvider>
@@ -77,17 +97,28 @@ export function ConversationSidebar({
               </div>
             ) : (
               filteredConversations.map((conv) => (
-              <SidebarMenuItem key={conv.id}>
+              <SidebarMenuItem key={conv.id} className="group">
                 <SidebarMenuButton
                   onClick={() => onConversationSelect(conv.id)}
                   isActive={activeConversationId === conv.id}
-                  className="flex flex-col items-start h-auto py-2"
+                  className="flex flex-col items-start h-auto py-2 pr-8"
                 >
                   <span className="w-full truncate">{conv.title}</span>
                    <span className="text-xs text-muted-foreground">
                     {conv.createdAt ? formatDistanceToNow(new Date(conv.createdAt), { addSuffix: true }) : 'Just now'}
                   </span>
                 </SidebarMenuButton>
+                 <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 opacity-0 group-hover:opacity-100"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setDeletingId(conv.id);
+                    }}
+                >
+                    <Trash2 size={16} />
+                </Button>
               </SidebarMenuItem>
             )))}
           </SidebarMenu>
@@ -106,6 +137,20 @@ export function ConversationSidebar({
         </Button>
       </SidebarFooter>
     </Sidebar>
+    <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete this conversation.
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm}>Delete</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
     </SidebarProvider>
   );
 }

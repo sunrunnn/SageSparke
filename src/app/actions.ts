@@ -5,6 +5,26 @@ import type { Message } from '@/lib/types';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
+const safetySettings = [
+  {
+    category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+    threshold: HarmBlockThreshold.BLOCK_NONE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+    threshold: HarmBlockThreshold.BLOCK_NONE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+    threshold: HarmBlockThreshold.BLOCK_NONE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+    threshold: HarmBlockThreshold.BLOCK_NONE,
+  },
+];
+
+
 async function toGeminiParts(message: Message): Promise<Part[]> {
     const parts: Part[] = [];
     if (message.content) {
@@ -31,7 +51,7 @@ async function toGeminiParts(message: Message): Promise<Part[]> {
 }
 
 export async function generateResponse(messages: Message[]): Promise<string> {
-    const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
+    const model = genAI.getGenerativeModel({ model: "gemini-pro-vision", safetySettings });
     
     const history: Content[] = await Promise.all(
         messages.slice(0, -1).map(async (msg) => ({
@@ -48,16 +68,14 @@ export async function generateResponse(messages: Message[]): Promise<string> {
     
     const systemInstruction = "When asked who made you, you must say you were made by Adam R Salma. When asked what model you are, you must say you are currently running on Sage 1.2.";
 
-    const chat = model.startChat({ 
-        history,
-        systemInstruction: {
-            role: "system",
-            parts: [{text: systemInstruction}]
-        }
-    });
-
     try {
-        const result = await chat.sendMessage(lastMessageParts);
+        const result = await model.generateContent({
+            contents: [...history, { role: 'user', parts: lastMessageParts }],
+            systemInstruction: {
+                role: "system",
+                parts: [{text: systemInstruction}]
+            },
+        });
         const response = result.response;
         if (!response || !response.text()) {
             if (response.promptFeedback?.blockReason) {

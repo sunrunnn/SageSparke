@@ -52,7 +52,7 @@ export function ChatLayout({ user }: { user: User | null }) {
     if (user) {
       loadedConversations = await fetchUserConversations();
     } else {
-      loadedConversations = Object.values(guestConversationStore);
+      loadedConversations = Object.values(guestConversationStore).sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
     setConversations(loadedConversations);
     if (loadedConversations.length > 0) {
@@ -354,6 +354,46 @@ export function ChatLayout({ user }: { user: User | null }) {
     }
   };
 
+  const handleDeleteConversation = async (conversationId: string) => {
+    const originalConversations = [...conversations];
+    
+    setConversations(prev => prev.filter(c => c.id !== conversationId));
+
+    if (activeConversationId === conversationId) {
+        const remainingConversations = originalConversations.filter(c => c.id !== conversationId);
+        setActiveConversationId(remainingConversations.length > 0 ? remainingConversations[0].id : null);
+    }
+
+    try {
+        if (user) {
+            const response = await fetch(`/api/conversations/${conversationId}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to delete conversation');
+            }
+        } else {
+            delete guestConversationStore[conversationId];
+        }
+
+        toast({
+            title: 'Conversation Deleted',
+            description: 'The conversation has been removed.',
+        });
+
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: error.message,
+        });
+        // Revert UI on error
+        setConversations(originalConversations);
+    }
+  };
+
   const activeConversation = conversations.find(
     (c) => c.id === activeConversationId
   );
@@ -371,6 +411,7 @@ export function ChatLayout({ user }: { user: User | null }) {
           activeConversationId={activeConversationId}
           onConversationSelect={setActiveConversationId}
           onNewConversation={handleNewConversation}
+          onDeleteConversation={handleDeleteConversation}
           isLoading={isLoading}
           isNewChatLoading={isNewChatLoading}
           userNav={<UserNav user={user} />}
@@ -383,6 +424,7 @@ export function ChatLayout({ user }: { user: User | null }) {
           onSendMessage={handleSendMessage}
           onEditMessage={handleEditMessage}
           isLoading={!activeConversation && isLoading}
+          onNewConversation={handleNewConversation}
         />
       </ResizablePanel>
     </ResizablePanelGroup>
