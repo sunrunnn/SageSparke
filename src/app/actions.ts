@@ -39,7 +39,7 @@ async function getChatHistory(messages: Message[]) {
 
 
 export async function generateResponse(messages: Message[]): Promise<string> {
-    const model = genAI.getGenerativeModel({ model: "gemini-pro", safetySettings });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", safetySettings });
     
     const { history, currentPrompt } = await getChatHistory(messages);
 
@@ -60,7 +60,7 @@ export async function generateResponse(messages: Message[]): Promise<string> {
 }
 
 export async function getConversationTitle(messages: Message[]): Promise<string> {
-    const model = genAI.getGenerativeModel({ model: "gemini-pro", safetySettings });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", safetySettings });
     
     const textMessages = messages.filter(msg => msg.content).map(msg => `${msg.role}: ${msg.content}`).join('\n');
     if (!textMessages) {
