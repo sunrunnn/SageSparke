@@ -48,18 +48,19 @@ export function ChatLayout({ user }: { user: User | null }) {
 
   const loadConversations = useCallback(async () => {
     setIsLoading(true);
+    let loadedConversations: Conversation[] = [];
     if (user) {
-      const userConversations = await fetchUserConversations();
-      setConversations(userConversations);
-      if (userConversations.length > 0) {
-        setActiveConversationId(userConversations[0].id);
-      }
+      loadedConversations = await fetchUserConversations();
     } else {
-      const guestConversations = Object.values(guestConversationStore);
-      setConversations(guestConversations);
-      if (guestConversations.length > 0) {
-        setActiveConversationId(guestConversations[0].id);
-      }
+      loadedConversations = Object.values(guestConversationStore);
+    }
+    setConversations(loadedConversations);
+    if (loadedConversations.length > 0) {
+      setActiveConversationId(loadedConversations[0].id);
+    } else {
+      setActiveConversationId(null);
+      // If there are no conversations, create a new one automatically
+      handleNewConversation();
     }
     setIsLoading(false);
   }, [user]);

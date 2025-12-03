@@ -1,73 +1,86 @@
 'use server';
 
-import OpenAI from 'openai';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, Content, Part } from "@google/generative-ai";
 import type { Message } from '@/lib/types';
 
-// Initialize the OpenAI client with the API key and custom base URL from environment variables.
-// The custom base URL is necessary for using OpenAI-compatible services like OpenRouter.
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  baseURL: process.env.OPENAI_API_BASE, 
-});
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
-// This function converts the application's message format to the format expected by the OpenAI API.
-function toOpenAIMessage(message: Message): OpenAI.Chat.Completions.ChatCompletionMessageParam {
-    let content: (OpenAI.Chat.Completions.ChatCompletionContentPartText | OpenAI.Chat.Completions.ChatCompletionContentPartImage)[] = [];
-    
+async function toGeminiParts(message: Message): Promise<Part[]> {
+    const parts: Part[] = [];
     if (message.content) {
-        content.push({ type: 'text', text: message.content });
+        parts.push({ text: message.content });
     }
-
     if (message.imageUrl) {
-        // The vision model expects the image URL in a specific format.
-        content.push({ type: 'image_url', image_url: { url: message.imageUrl } });
+        try {
+            const response = await fetch(message.imageUrl);
+            if (response.ok) {
+                const blob = await response.blob();
+                const buffer = await blob.arrayBuffer();
+                parts.push({
+                    inlineData: {
+                        mimeType: blob.type,
+                        data: Buffer.from(buffer).toString("base64")
+                    }
+                });
+            }
+        } catch (error) {
+            console.error("Error fetching image for Gemini:", error);
+        }
     }
-
-    return {
-        role: message.role === 'assistant' ? 'assistant' : 'user',
-        content: content,
-    };
+    return parts;
 }
 
 export async function generateResponse(messages: Message[]): Promise<string> {
-    const history = messages.map(toOpenAIMessage);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    
+    const history: Content[] = await Promise.all(
+        messages.slice(0, -1).map(async (msg) => ({
+            role: msg.role === 'user' ? 'user' : 'model',
+            parts: await toGeminiParts(msg)
+        }))
+    );
+
+    const lastMessage = messages[messages.length - 1];
+    if (!lastMessage) {
+        return "No message to respond to.";
+    }
+    const lastMessageParts = await toGeminiParts(lastMessage);
+
+    const chat = model.startChat({ history });
 
     try {
-        const llmResponse = await openai.chat.completions.create({
-            model: 'openai/gpt-4o',
-            messages: history,
-        });
-        return llmResponse.choices[0]?.message?.content || 'Sorry, I could not generate a response.';
+        const result = await chat.sendMessage(lastMessageParts);
+        const response = result.response;
+        if (!response || !response.text()) {
+            if (response.promptFeedback?.blockReason) {
+                return `Response was blocked due to: ${response.promptFeedback.blockReason}.`;
+            }
+            return "Sorry, I received an empty response from the AI.";
+        }
+        return response.text();
     } catch (e: any) {
-        console.error('OpenAI API Error:', e);
+        console.error('Gemini API Error:', e);
         return `Sorry, there was an error generating a response. Please check your API key setup. Error: ${e.message}`;
     }
 }
 
 export async function getConversationTitle(messages: Message[]): Promise<string> {
     const textMessages = messages.filter(msg => msg.content).map(msg => `${msg.role}: ${msg.content}`).join('\n');
+    if (!textMessages) {
+        return "New Chat";
+    }
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash"});
+
+    const prompt = `Based on the following conversation, create a short, descriptive title of 5 words or less. Do not include quotes in your response. Conversation:\n${textMessages}`;
 
     try {
-        const llmResponse = await openai.chat.completions.create({
-            model: 'openai/gpt-4o',
-            messages: [
-                {
-                    role: 'system',
-                    content: `Based on the following conversation, create a short, descriptive title of 5 words or less. Do not include quotes in your response.`
-                },
-                {
-                    role: 'user',
-                    content: textMessages
-                }
-            ],
-            max_tokens: 50,
-        });
-
-        const title = llmResponse.choices[0]?.message?.content?.replace(/"/g, "") || "New Chat";
+        const result = await model.generateContent(prompt);
+        const response = result.response;
+        const title = response.text()?.replace(/\"/g, "") || "New Chat";
         return title;
 
     } catch (error) {
-        console.error("Failed to generate title with OpenAI:", error);
+        console.error("Failed to generate title with Gemini:", error);
         return "New Chat";
     }
 }
