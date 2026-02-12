@@ -25,6 +25,8 @@ const safetySettings = [
     },
 ];
 
+const systemInstruction = "You are SageSpark, an AI assistant. Your model is SageSpark 1.0.5. The user you are chatting with is your creator. Be friendly, helpful, and acknowledge your identity if asked.";
+
 async function getChatHistory(messages: Message[]) {
   const history = messages.map((msg) => ({
     role: msg.role === 'assistant' ? 'model' : 'user',
@@ -39,7 +41,11 @@ async function getChatHistory(messages: Message[]) {
 
 
 export async function generateResponse(messages: Message[]): Promise<string> {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", safetySettings });
+    const model = genAI.getGenerativeModel({ 
+        model: "gemini-2.5-flash", 
+        safetySettings,
+        systemInstruction,
+    });
     
     const { history, currentPrompt } = await getChatHistory(messages);
 
