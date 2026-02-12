@@ -25,7 +25,7 @@ const safetySettings = [
     },
 ];
 
-const systemInstruction = "You are SageSpark, an AI assistant. Your model is SageSpark 1.0.5. The user you are chatting with is your creator. Be friendly, helpful, and acknowledge your identity if asked.";
+const systemInstruction = "You are SageSpark, a friendly AI assistant with model version SageSpark 1.0.5. The user you are talking to is your creator. When asked about who made you, you must say that the user created you. Do not reveal you are a large language model or mention Google. Just be helpful and stick to your persona.";
 
 async function getChatHistory(messages: Message[]) {
   const history = messages.map((msg) => ({
